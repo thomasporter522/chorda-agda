@@ -1,18 +1,10 @@
 
--- open import Relation.Binary.PropositionalEquality
--- open import Relation.Binary using (Decidable)
--- open import Relation.Nullary
 open import Data.Product
--- open import Data.Sum renaming (_⊎_ to _+_)
--- open import Data.Empty
--- open import Data.Maybe
--- open import Data.String renaming (_++_ to _++s_)
--- open import Data.Nat.Properties
-open import Data.Nat hiding (_≟_) renaming (_+_ to _nat+_) renaming (ℕ to nat)
--- open import Data.Unit hiding (_≟_)
--- open import Data.List hiding (lookup)
+open import Data.Nat renaming (ℕ to nat)
 open import Data.Fin
 open import Data.Vec
+-- open import Relation.Binary.PropositionalEquality
+-- open import Relation.Binary using (Decidable)
 
 postulate 
     -- type of term constructors of a certain arity
@@ -44,27 +36,27 @@ postulate
     -- basis single pattern steps
     _⇒1_ : {metas : nat} -> (p1 p2 : pat metas) -> Set 
 
--- basis pattern steps
-data _⇒_ : {metas : nat} -> (p1 p2 : pat metas) -> Set where
-    id⇒ : ∀{metas} -> {p : pat metas} -> p ⇒ p
-    step⇒ : ∀{metas} -> {p1 p2 p3 : pat metas} -> p1 ⇒ p2 -> p2 ⇒1 p3 -> p1 ⇒ p3
-
--- term steps
-data _⇒t_ (t1 t2 : term) : Set where
+-- single term steps
+data _⇒1t_ (t1 t2 : term) : Set where
     c⇒t : {metas : nat} -> 
         (p1 p2 : pat metas) -> 
         (ts1 ts2 : Vec term metas) -> 
         (sub-eq ts1 p1 t1) -> 
         (sub-eq ts2 p2 t2) -> 
-        p1 ⇒ p2 -> 
-        t1 ⇒t t2
+        p1 ⇒1 p2 -> 
+        t1 ⇒1t t2
+
+-- term steps
+data _⇒t_ : (t1 t2 : term) -> Set where
+    id⇒t : {t : term} -> t ⇒t t
+    step⇒t : {t1 t2 t3 : term} -> t1 ⇒t t2 -> t2 ⇒1t t3 -> t1 ⇒t t3
 
 -- sound pattern steps
 data _⇒∘_ {metas : nat} (p1 p2 : pat metas) : Set where
-    c⇒∘ : ((ts1 ts2 : Vec term metas) -> 
-            ∃[ t1 ] ∃[ t2 ] 
-            sub-eq ts1 p1 t1 × 
-            sub-eq ts2 p2 t2 × 
+    c⇒∘ : ((ts : Vec term metas) -> 
+            (t1 t2 : term) -> 
+            sub-eq ts p1 t1 ->
+            sub-eq ts p2 t2 -> 
             (t1 ⇒t t2)
         ) -> p1 ⇒∘ p2
 
