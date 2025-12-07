@@ -22,7 +22,8 @@ sub-dec = {!   !}
     body ts t1 t3 sub1 sub3 with sub-dec ts p2 
     ... | t2 , sub2 = ⇒t-trans (h1 ts t1 t2 sub1 sub2) (h2 ts t2 t3 sub2 sub3)
 
-multisub-dec : {metas metas' : nat} -> (ps : Vec (pat metas') metas) -> (ts : Vec term metas') -> Σ[ ts' ∈ Vec term metas ] multisub-eq ps ts ts'
+
+multisub-dec : {arity metas : nat} -> (ts : Vec term metas) -> (cs : Vec (pat metas) arity) -> Σ[ cs' ∈ Vec term arity ] multisub-eq ts cs cs'
 multisub-dec = {!   !}
 
 -- index-multisub : ∀{n B} -> {A : Set} -> {a : A} -> {x : Fin n} -> {as : Vec A n} ->
@@ -33,7 +34,7 @@ multisub-dec = {!   !}
 
 -- need unicities
 index-multisub : ∀{metas metas' t ts x} -> {ps : Vec (pat metas') metas} -> {p : pat metas'} -> {ts' : Vec term metas} -> 
-    multisub-eq ps ts ts' -> 
+    multisub-eq ts ps ts' -> 
     sub-eq ts p t ->  
     index-eq ps x p ->
     index-eq ts' x t
@@ -44,7 +45,7 @@ index-multisub multisub sub index = {!   !}
 sub-multisub : ∀{metas metas' t ts} -> {p : pat metas} -> {ps : Vec (pat metas') metas} -> {p' : pat metas'} -> {ts' : Vec term metas} -> 
     compose-eq ps p p' -> 
     sub-eq ts p' t -> 
-    multisub-eq ps ts ts' -> 
+    multisub-eq ts ps ts' -> 
     sub-eq ts' p t
 sub-multisub (X-compose-eq index) sub multisub = X-sub-eq (index-multisub multisub sub index)
 -- ps[x] = p' ==ts==> t
@@ -59,7 +60,7 @@ comp⇒∘ : ∀{metas metas'} -> {p1 p2 : pat metas} -> {ps : Vec (pat metas') 
 comp⇒∘ {ps = ps} (c⇒∘ h) comp1 comp2 = c⇒∘ body
     where 
     body : _
-    body ts t1 t2 sub1 sub2 with multisub-dec ps ts 
+    body ts t1 t2 sub1 sub2 with multisub-dec ts ps 
     body ts t1 t2 sub1 sub2 | thing1 , thing2 with sub-multisub comp1 sub1 {!  thing2 !} | sub-multisub comp2 sub2 {!   !} 
     body ts t1 t2 sub1 sub2 | thing1 , thing2 | sub1' | sub2' = h thing1 t1 t2 {!   !} {!   !}
 
