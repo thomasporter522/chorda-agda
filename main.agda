@@ -23,14 +23,23 @@ data index-eq {A : Set} : ∀{n} -> Vec A n -> Fin n -> A -> Set where
     suc-index-eq : ∀{a a' n} -> {v : Vec A (suc n)} -> {x : Fin (suc n)} -> 
         index-eq v x a ->
         index-eq (a' ∷ v) (suc x) a
+        
+mutual 
 
-data sub-eq {metas : nat} (ts : Vec term metas) : (p : pat metas) -> term -> Set where 
-    X-sub-eq : ∀{x t} ->
-        index-eq ts x t -> 
-        sub-eq ts (X x) t
-    T-sub-eq : ∀{arity} -> {k : K arity} -> {ps : Vec (pat metas) arity} -> {ts' : Vec term arity} ->
-        ((i : Fin arity) -> ∃[ p ] ∃[ t ] index-eq ps i p × index-eq ts' i t × (sub-eq ts p t)) ->
-        sub-eq ts (T k ps) (T k ts')
+    multisub-eq : ∀{arity metas} ->
+        Vec term metas -> 
+        Vec (pat metas) arity -> 
+        Vec term arity -> 
+        Set
+    multisub-eq {arity} {metas} ts cs cs' = (i : Fin arity) -> (c : pat metas) -> (c' : term) -> index-eq cs i c -> index-eq cs' i c' -> sub-eq ts c c'
+
+    data sub-eq {metas : nat} (ts : Vec term metas) : (p : pat metas) -> term -> Set where 
+        X-sub-eq : ∀{x t} ->
+            index-eq ts x t -> 
+            sub-eq ts (X x) t
+        T-sub-eq : ∀{arity} -> {k : K arity} -> {cs : Vec (pat metas) arity} -> {cs' : Vec term arity} ->
+            multisub-eq ts cs cs' ->
+            sub-eq ts (T k cs) (T k cs')
 
 postulate 
     -- basis single pattern steps
@@ -60,13 +69,22 @@ data _⇒∘_ {metas : nat} (p1 p2 : pat metas) : Set where
             (t1 ⇒t t2)
         ) -> p1 ⇒∘ p2
 
-data compose-eq {metas metas' : nat} (ps : Vec (pat metas') metas) : (p : pat metas) -> (pat metas') -> Set where 
-    X-compose-eq : ∀{x p} ->
-        index-eq ps x p -> 
-        compose-eq ps (X x) p
-    T-compose-eq : ∀{arity} -> {k : K arity} -> {cs : Vec (pat metas) arity} -> {cs' : Vec (pat metas') arity} ->
-        ((i : Fin arity) -> ∃[ c ] ∃[ c' ] index-eq cs i c × index-eq cs' i c' × (compose-eq ps c c')) ->
-        compose-eq ps (T k cs) (T k cs')
+mutual
+
+    multicompose-eq : ∀{arity metas metas'} ->
+        Vec (pat metas') metas -> 
+        Vec (pat metas) arity -> 
+        Vec (pat metas') arity -> 
+        Set
+    multicompose-eq {arity} {metas} {metas'} ps cs cs' = (i : Fin arity) -> (c : pat metas) -> (c' : pat metas') -> index-eq cs i c -> index-eq cs' i c' -> compose-eq ps c c'
+
+    data compose-eq {metas metas' : nat} (ps : Vec (pat metas') metas) : (p : pat metas) -> (pat metas') -> Set where 
+        X-compose-eq : ∀{x p} ->
+            index-eq ps x p -> 
+            compose-eq ps (X x) p
+        T-compose-eq : ∀{arity} -> {k : K arity} -> {cs : Vec (pat metas) arity} -> {cs' : Vec (pat metas') arity} ->
+            multicompose-eq ps cs cs' ->
+            compose-eq ps (T k cs) (T k cs')
 
 data unifies {metas metas' : nat} (p1 p2 : pat metas) (p : pat metas') (ps1 ps2 : Vec (pat metas') metas) : Set where 
     c-unifies : 
