@@ -70,15 +70,15 @@ data _⇒∘_ {metas : nat} (p1 p2 : pat metas) : Set where
 
 data compose-eq {metas metas' : nat} (ps : Vec (pat metas) metas') : (p : pat metas') -> (pat metas) -> Set where 
 
-data antiunifies {metas metas' : nat} (p1 p2 : pat metas) (p : pat metas') (ps1 ps2 : Vec (pat metas) metas') : Set where 
-    c-antiunifies : 
-        (compose-eq ps1 p p1) -> 
-        (compose-eq ps2 p p2) -> 
-        antiunifies p1 p2 p ps1 ps2
+data unifies {metas metas' : nat} (p1 p2 : pat metas) (p : pat metas') (ps1 ps2 : Vec (pat metas') metas) : Set where 
+    c-unifies : 
+        (compose-eq ps1 p1 p) -> 
+        (compose-eq ps2 p2 p) -> 
+        unifies p1 p2 p ps1 ps2
 
-data antiunification {metas : nat} (p1 p2 : pat metas) : Set where 
-    c-antiunification : {metas' : nat} ->
+data unification {metas : nat} (p1 p2 : pat metas) : Set where 
+    c-unification : {metas' : nat} ->
         (p : pat metas') ->
-        (ps1 ps2 : Vec (pat metas) metas') -> 
-        antiunifies p1 p2 p ps1 ps2 -> 
-        antiunification p1 p2
+        (ps1 ps2 : Vec (pat metas') metas) -> 
+        unifies p1 p2 p ps1 ps2 -> 
+        unification p1 p2
