@@ -60,7 +60,13 @@ data _⇒∘_ {metas : nat} (p1 p2 : pat metas) : Set where
             (t1 ⇒t t2)
         ) -> p1 ⇒∘ p2
 
-data compose-eq {metas metas' : nat} (ps : Vec (pat metas) metas') : (p : pat metas') -> (pat metas) -> Set where 
+data compose-eq {metas metas' : nat} (ps : Vec (pat metas') metas) : (p : pat metas) -> (pat metas') -> Set where 
+    X-compose-eq : ∀{x p} ->
+        index-eq ps x p -> 
+        compose-eq ps (X x) p
+    T-compose-eq : ∀{arity} -> {k : K arity} -> {cs : Vec (pat metas) arity} -> {cs' : Vec (pat metas') arity} ->
+        ((i : Fin arity) -> ∃[ c ] ∃[ c' ] index-eq cs i c × index-eq cs' i c' × (compose-eq ps c c')) ->
+        compose-eq ps (T k cs) (T k cs')
 
 data unifies {metas metas' : nat} (p1 p2 : pat metas) (p : pat metas') (ps1 ps2 : Vec (pat metas') metas) : Set where 
     c-unifies : 

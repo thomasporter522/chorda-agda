@@ -1,5 +1,6 @@
-open import Data.Product
+open import Data.Product hiding (map)
 open import Data.Nat renaming (ℕ to nat)
+open import Data.Fin
 open import Data.Vec
 
 open import main
@@ -21,12 +22,36 @@ sub-dec = {!   !}
     body ts t1 t3 sub1 sub3 with sub-dec ts p2 
     ... | t2 , sub2 = ⇒t-trans (h1 ts t1 t2 sub1 sub2) (h2 ts t2 t3 sub2 sub3)
 
+multisub : ∀{metas metas'} ->
+    Vec (pat metas') metas -> 
+    Vec term metas' -> 
+    Vec term metas
+multisub ps ts = map (λ p → proj₁ (sub-dec ts p)) ps
+
+
+index-map : ∀{n B} -> {A : Set} -> {a : A} -> {x : Fin n} -> {as : Vec A n} ->
+    (f : A -> B) -> 
+    index-eq as x a -> 
+    index-eq (map f as) x (f a)
+index-map = {!   !}
+
+sub-multisub : ∀{metas metas' t ts} -> {p : pat metas} -> {ps : Vec (pat metas') metas} -> {p' : pat metas'} ->
+    compose-eq ps p p' -> 
+    sub-eq ts p' t -> 
+    sub-eq (multisub ps ts) p t
+sub-multisub (X-compose-eq i) sub = X-sub-eq (index-map ((λ p → proj₁ (sub-dec {!   !} p))) i)
+sub-multisub (T-compose-eq x) sub = {!   !}
+
 comp⇒∘ : ∀{metas metas'} -> {p1 p2 : pat metas} -> {ps : Vec (pat metas') metas} -> {p1' p2' : pat metas'} ->
     p1 ⇒∘ p2 -> 
     compose-eq ps p1 p1' -> 
     compose-eq ps p2 p2' -> 
     p1' ⇒∘ p2'
-comp⇒∘ h comp1 comp2 = {!   !}
+comp⇒∘ {ps = ps} (c⇒∘ h) comp1 comp2 = c⇒∘ body
+    where 
+    body : _
+    body ts t1 t2 sub1 sub2 with sub-multisub comp1 sub1 | sub-multisub comp2 sub2 
+    ... | sub1' | sub2' = h (multisub ps ts) t1 t2 sub1' sub2'
 
 composition : ∀{metas} -> 
     {p1 p2 p3 p4 : pat metas} -> 
