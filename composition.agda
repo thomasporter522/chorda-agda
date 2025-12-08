@@ -24,8 +24,9 @@ comp⇒1 : ∀{metas metas'} -> {p1 p2 : pat metas} -> {ps : Vec (pat metas') me
     compose-eq ps p1 p1' -> 
     compose-eq ps p2 p2' -> 
     p1' ⇒1 p2'
-comp⇒1 {ps = ps} (c⇒1 p1'' p2'' ps' comp1' comp2' step) comp1 comp2 with multicompose-dec ps' ps
-... | thing = c⇒1 p1'' p2'' {!   !} {!   !} {!   !} step
+comp⇒1 {ps = ps} (c⇒1 p1'' p2'' ps' comp1' comp2' step) comp1 comp2 = c⇒1 p1'' p2'' {!   !} {!   !} {!   !} step
+-- multicompose-dec ps' ps
+-- ... | thing = c⇒1 p1'' p2'' {!   !} {!   !} {!   !} step
 
 comp⇒ : ∀{metas metas'} -> {p1 p2 : pat metas} -> {ps : Vec (pat metas') metas} -> {p1' p2' : pat metas'} ->
     p1 ⇒ p2 -> 
