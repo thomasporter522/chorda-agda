@@ -4,7 +4,11 @@ open import Data.Fin
 open import Data.Vec
 open import Relation.Binary.PropositionalEquality
 
-open import main
+open import Language
+
+module Composition ((Language K _b⇒1_) : language) where
+
+open import Pattern (Language K _b⇒1_)
 
 ⇒-trans : ∀{metas} -> {p1 p2 p3 : pat metas} -> p1 ⇒ p2 -> p2 ⇒ p3 -> p1 ⇒ p3
 ⇒-trans h1 id⇒ = h1
