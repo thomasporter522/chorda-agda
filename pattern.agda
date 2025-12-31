@@ -1,9 +1,9 @@
 
-open import Data.Product
+open import Data.Product hiding (map)
 open import Data.Nat renaming (ℕ to nat)
 open import Data.Fin
 open import Data.Vec
--- open import Relation.Binary.PropositionalEquality
+open import Relation.Binary.PropositionalEquality
 -- open import Relation.Binary using (Decidable)
 
 open import Language
@@ -21,7 +21,7 @@ module Pattern ((Language K _b⇒1_) : language) where
 
     data index-eq {A : Set} : ∀{n} -> Vec A n -> Fin n -> A -> Set where 
         zero-index-eq : ∀{a n} -> {v : Vec A n} -> index-eq (a ∷ v) zero a
-        suc-index-eq : ∀{a a' n} -> {v : Vec A (suc n)} -> {x : Fin (suc n)} -> 
+        suc-index-eq : ∀{a a' n} -> {v : Vec A n} -> {x : Fin n} -> 
             index-eq v x a ->
             index-eq (a' ∷ v) (suc x) a
             
@@ -54,10 +54,10 @@ module Pattern ((Language K _b⇒1_) : language) where
     data lb {metas1 metas2 metas : nat} (p1 : pat metas1) (p2 : pat metas2) (p : pat metas) : Set where
         LB : p1 ⊒ p -> p2 ⊒ p -> lb p1 p2 p
     
-    data _⊓_≡_ {metas1 metas2 metas : nat} (p1 : pat metas1) (p2 : pat metas2) (p : pat metas) : Set where 
+    data _⊓_＝_ {metas1 metas2 metas : nat} (p1 : pat metas1) (p2 : pat metas2) (p : pat metas) : Set where 
         GLB : lb p1 p2 p -> 
             (∀{metas'} -> (p' : pat metas') -> lb p1 p2 p' -> p ⊒ p') ->
-            p1 ⊓ p2 ≡ p
+            p1 ⊓ p2 ＝ p
 
     -- single steps
     data _⇒1_ {metas : nat} (p1 p2 : pat metas) : Set where
@@ -74,8 +74,101 @@ module Pattern ((Language K _b⇒1_) : language) where
         id⇒ : {p : pat metas} -> p ⇒ p
         step⇒ : {p1 p2 p3 : pat metas} -> p1 ⇒ p2 -> p2 ⇒1 p3 -> p1 ⇒ p3
 
-    -- data unifies {metas metas' : nat} (p1 p2 : pat metas) (p : pat metas') (ps1 ps2 : Vec (pat metas') metas) : Set where 
-    --     c-unifies : 
-    --         (subst-eq ps1 p1 p) -> 
-    --         (subst-eq ps2 p2 p) -> 
-    --         unifies p1 p2 p ps1 ps2
+    data GLBResult {metasL metasR : nat} (pL : pat metasL) (pR : pat metasR) : Set where 
+        CR : {metas' : nat} ->
+            (p' : pat metas') -> 
+            pL ⊓ pR ＝ p' ->
+            GLBResult pL pR
+
+    vec-const : ∀{metas metas'} -> 
+        (p : pat metas') -> 
+        sub metas metas'
+    vec-const {zero} p = []
+    vec-const {suc metas} p = p ∷ vec-const p
+
+    var-gt : ∀{metas metas'} -> 
+        (x : Fin metas) -> 
+        (p : pat metas') -> 
+        (X x) ⊒ p
+    var-gt zero p = Refine (p ∷ vec-const p) (X-subst-eq zero-index-eq)
+    var-gt (suc x) p with var-gt x p 
+    ... | Refine s (X-subst-eq i) = Refine (p ∷ s) (X-subst-eq (suc-index-eq i))
+
+    range : (n : nat) -> Vec (Fin n) n
+    range zero = []
+    range (suc n) = zero ∷ map suc (range n)
+
+    id-sub : (metas : nat) -> sub metas metas
+    id-sub metas = map X (range metas)
+
+    index-eq-unicity : ∀{metas arity} -> 
+        {i : Fin arity} ->
+        {ps : Vec (pat metas) arity} -> 
+        {p p' : pat metas} -> 
+        index-eq ps i p -> 
+        index-eq ps i p' -> 
+        p ≡ p' 
+    index-eq-unicity zero-index-eq zero-index-eq = refl
+    index-eq-unicity (suc-index-eq ie) (suc-index-eq ie') = index-eq-unicity ie ie'
+
+    map-index-eq : ∀{A B a n} -> {v : Vec A n} -> {x : Fin n} -> {f : A -> B} ->
+        index-eq v x a -> 
+        index-eq (map f v) x (f a)
+    map-index-eq zero-index-eq = zero-index-eq
+    map-index-eq (suc-index-eq ie) = suc-index-eq (map-index-eq ie)
+
+    range-index-eq : ∀{n} ->
+        (x : Fin n) -> 
+        index-eq (range n) x x
+    range-index-eq zero = zero-index-eq
+    range-index-eq (suc x) = suc-index-eq (map-index-eq (range-index-eq x))
+
+    id-index-eq : ∀{metas} ->
+        (x : Fin metas) -> 
+        index-eq (id-sub metas) x (X x)
+    id-index-eq x = map-index-eq (range-index-eq x)
+
+    mutual
+        {-# TERMINATING #-}
+        id-multisubst-eq : ∀{metas arity} -> 
+            (ps : Vec (pat metas) arity) -> 
+            multisubst-eq (id-sub metas) ps ps
+        id-multisubst-eq ps i p p' ie ie' rewrite index-eq-unicity ie ie' = id-subst-eq p'
+
+        id-subst-eq : ∀{metas} ->
+            (p : pat metas) -> 
+            subst-eq (id-sub metas) p p
+        id-subst-eq (T k ps) = T-subst-eq (id-multisubst-eq ps)
+        id-subst-eq (X x) = X-subst-eq (id-index-eq x)
+
+    gt-refl : ∀{metas} -> 
+        (p : pat metas) -> 
+        p ⊒ p
+    gt-refl {metas} p = Refine (id-sub metas) (id-subst-eq p)
+
+    glb : ∀{metasL metasR metas} -> 
+        (pL : pat metasL) -> 
+        (pR : pat metasR) -> 
+        (p : pat metas) -> 
+        lb pL pR p -> 
+        GLBResult pL pR
+
+    glb (X xL) (X xR) p (LB (Refine sL (X-subst-eq x₂)) (Refine sR (X-subst-eq x₃))) = 
+        CR {metas' = suc zero} (X zero) (GLB (LB (var-gt xL (X zero)) (var-gt xR (X zero))) gt)
+            where 
+            gt : {metas' : nat} (p' : pat metas') -> lb (X xL) (X xR) p' -> X zero ⊒ p'
+            gt p' z = Refine (p' ∷ []) (X-subst-eq zero-index-eq)
+
+    glb (T k psL) (X x) p (LB (Refine sL (T-subst-eq mse)) (Refine sR (X-subst-eq ie))) =
+        CR (T k psL) (GLB (LB (gt-refl (T k psL)) (var-gt x (T k psL))) gt)
+            where 
+            gt : {metas' : nat} (p' : pat metas') -> lb (T k psL) (X x) p' → T k psL ⊒ p'
+            gt p' (LB g _) = g
+
+    glb (X x) (T k psR) p (LB (Refine sL (X-subst-eq ie)) (Refine sR (T-subst-eq mse))) = 
+        CR (T k psR) (GLB (LB (var-gt x (T k psR)) (gt-refl (T k psR))) gt)
+            where 
+            gt : {metas' : nat} (p' : pat metas') -> lb (X x) (T k psR) p' → T k psR ⊒ p'
+            gt p' (LB _ g) = g
+
+    glb (T k psL) (T .k psR) p (LB (Refine sL (T-subst-eq x₂)) (Refine sR (T-subst-eq x₃))) = {!   !}
