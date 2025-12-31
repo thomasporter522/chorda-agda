@@ -13,6 +13,9 @@ module Pattern ((Language K _b⇒1_) : language) where
     pat : nat -> Set 
     pat = kpat K
 
+    sub : nat -> nat -> Set
+    sub metas metas' = Vec (pat metas') metas
+
     term : Set 
     term = pat zero
 
@@ -24,28 +27,45 @@ module Pattern ((Language K _b⇒1_) : language) where
             
     mutual
 
-        multicompose-eq : ∀{arity metas metas'} ->
-            Vec (pat metas') metas -> 
+        multisubst-eq : ∀{arity metas metas'} ->
+            sub metas metas' -> 
             Vec (pat metas) arity -> 
             Vec (pat metas') arity -> 
             Set
-        multicompose-eq {arity} {metas} {metas'} ps cs cs' = (i : Fin arity) -> (c : pat metas) -> (c' : pat metas') -> index-eq cs i c -> index-eq cs' i c' -> compose-eq ps c c'
+        multisubst-eq {arity} {metas} {metas'} s ps ps' = 
+            (i : Fin arity) -> 
+            (c : pat metas) -> 
+            (c' : pat metas') -> 
+            index-eq ps i c -> 
+            index-eq ps' i c' -> 
+            subst-eq s c c'
 
-        data compose-eq {metas metas' : nat} (ps : Vec (pat metas') metas) : (p : pat metas) -> (pat metas') -> Set where 
-            X-compose-eq : ∀{x p} ->
-                index-eq ps x p -> 
-                compose-eq ps (X x) p
-            T-compose-eq : ∀{arity} -> {k : K arity} -> {cs : Vec (pat metas) arity} -> {cs' : Vec (pat metas') arity} ->
-                multicompose-eq ps cs cs' ->
-                compose-eq ps (T k cs) (T k cs')
+        data subst-eq {metas metas' : nat} (s : sub metas metas') : (p : pat metas) -> (pat metas') -> Set where 
+            X-subst-eq : ∀{x p} ->
+                index-eq s x p -> 
+                subst-eq s (X x) p
+            T-subst-eq : ∀{arity} -> {k : K arity} -> {ps : Vec (pat metas) arity} -> {ps' : Vec (pat metas') arity} ->
+                multisubst-eq s ps ps' ->
+                subst-eq s (T k ps) (T k ps')
 
-    -- single stepse
+    data _⊒_ {metas metas' : nat} (p1 : pat metas) (p2 : pat metas') : Set where
+        Refine : (s : sub metas metas') -> subst-eq s p1 p2 -> p1 ⊒ p2
+    
+    data lb {metas1 metas2 metas : nat} (p1 : pat metas1) (p2 : pat metas2) (p : pat metas) : Set where
+        LB : p1 ⊒ p -> p2 ⊒ p -> lb p1 p2 p
+    
+    data _⊓_≡_ {metas1 metas2 metas : nat} (p1 : pat metas1) (p2 : pat metas2) (p : pat metas) : Set where 
+        GLB : lb p1 p2 p -> 
+            (∀{metas'} -> (p' : pat metas') -> lb p1 p2 p' -> p ⊒ p') ->
+            p1 ⊓ p2 ≡ p
+
+    -- single steps
     data _⇒1_ {metas : nat} (p1 p2 : pat metas) : Set where
         c⇒1 : {metas' : nat} -> 
             (p1' p2' : pat metas') -> 
-            (ps : Vec (pat metas) metas') -> 
-            (compose-eq ps p2' p2) -> 
-            (compose-eq ps p1' p1) -> 
+            (s : sub metas' metas) -> 
+            (subst-eq s p2' p2) -> 
+            (subst-eq s p1' p1) -> 
             p1' b⇒1 p2' -> 
             p1 ⇒1 p2
 
@@ -54,8 +74,8 @@ module Pattern ((Language K _b⇒1_) : language) where
         id⇒ : {p : pat metas} -> p ⇒ p
         step⇒ : {p1 p2 p3 : pat metas} -> p1 ⇒ p2 -> p2 ⇒1 p3 -> p1 ⇒ p3
 
-    data unifies {metas metas' : nat} (p1 p2 : pat metas) (p : pat metas') (ps1 ps2 : Vec (pat metas') metas) : Set where 
-        c-unifies : 
-            (compose-eq ps1 p1 p) -> 
-            (compose-eq ps2 p2 p) -> 
-            unifies p1 p2 p ps1 ps2
+    -- data unifies {metas metas' : nat} (p1 p2 : pat metas) (p : pat metas') (ps1 ps2 : Vec (pat metas') metas) : Set where 
+    --     c-unifies : 
+    --         (subst-eq ps1 p1 p) -> 
+    --         (subst-eq ps2 p2 p) -> 
+    --         unifies p1 p2 p ps1 ps2
