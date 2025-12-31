@@ -39,7 +39,7 @@ module Pattern ((Language K _b⇒1_) : language) where
                 multicompose-eq ps cs cs' ->
                 compose-eq ps (T k cs) (T k cs')
 
-    -- single steps
+    -- single stepse
     data _⇒1_ {metas : nat} (p1 p2 : pat metas) : Set where
         c⇒1 : {metas' : nat} -> 
             (p1' p2' : pat metas') -> 
