@@ -51,13 +51,24 @@ module Pattern ((Language K _b⇒1_) : language) where
     data _⊒_ {metas metas' : nat} (p1 : pat metas) (p2 : pat metas') : Set where
         Refine : (s : sub metas metas') -> subst-eq s p1 p2 -> p1 ⊒ p2
     
+    data _m⊒_ {arity metas metas' : nat} (p1 : Vec (kpat K metas) arity) (p2 : Vec (kpat K metas') arity) : Set where
+        MRefine : (s : sub metas metas') -> multisubst-eq s p1 p2 -> p1 m⊒ p2
+    
     data lb {metas1 metas2 metas : nat} (p1 : pat metas1) (p2 : pat metas2) (p : pat metas) : Set where
         LB : p1 ⊒ p -> p2 ⊒ p -> lb p1 p2 p
+
+    data mlb {arity metas1 metas2 metas : nat} (p1 : Vec (kpat K metas1) arity) (p2 : Vec (kpat K metas2) arity) (p : Vec (kpat K metas) arity) : Set where
+        MLB : p1 m⊒ p -> p2 m⊒ p -> mlb p1 p2 p
     
     data _⊓_＝_ {metas1 metas2 metas : nat} (p1 : pat metas1) (p2 : pat metas2) (p : pat metas) : Set where 
         GLB : lb p1 p2 p -> 
             (∀{metas'} -> (p' : pat metas') -> lb p1 p2 p' -> p ⊒ p') ->
             p1 ⊓ p2 ＝ p
+
+    data _m⊓_＝_ {arity metas1 metas2 metas : nat} (p1 : Vec (kpat K metas1) arity) (p2 : Vec (kpat K metas2) arity) (p : Vec (kpat K metas) arity) : Set where 
+        MGLB : mlb p1 p2 p -> 
+            (∀{metas'} -> (p' : Vec (kpat K metas') arity) -> mlb p1 p2 p' -> p m⊒ p') ->
+            p1 m⊓ p2 ＝ p
 
     -- single steps
     data _⇒1_ {metas : nat} (p1 p2 : pat metas) : Set where
@@ -74,11 +85,13 @@ module Pattern ((Language K _b⇒1_) : language) where
         id⇒ : {p : pat metas} -> p ⇒ p
         step⇒ : {p1 p2 p3 : pat metas} -> p1 ⇒ p2 -> p2 ⇒1 p3 -> p1 ⇒ p3
 
-    data GLBResult {metasL metasR : nat} (pL : pat metasL) (pR : pat metasR) : Set where 
-        CR : {metas' : nat} ->
-            (p' : pat metas') -> 
-            pL ⊓ pR ＝ p' ->
-            GLBResult pL pR
+
+
+
+
+
+
+
 
     vec-const : ∀{metas metas'} -> 
         (p : pat metas') -> 
@@ -146,29 +159,72 @@ module Pattern ((Language K _b⇒1_) : language) where
         p ⊒ p
     gt-refl {metas} p = Refine (id-sub metas) (id-subst-eq p)
 
-    glb : ∀{metasL metasR metas} -> 
-        (pL : pat metasL) -> 
-        (pR : pat metasR) -> 
-        (p : pat metas) -> 
-        lb pL pR p -> 
-        GLBResult pL pR
+    m⊓-T⊓ : ∀{arity metas metasL metasR k} -> 
+        {psL : Vec (kpat K metasL) arity} -> 
+        {psR : Vec (kpat K metasR) arity} -> 
+        {ps : Vec (kpat K metas) arity} -> 
+        psL m⊓ psR ＝ ps -> 
+        T k psL ⊓ T k psR ＝ T k ps
+    m⊓-T⊓ (MGLB (MLB (MRefine s seq) (MRefine s' seq')) limit) = 
+        GLB (LB (Refine s (T-subst-eq seq)) (Refine s' (T-subst-eq seq'))) helper
+        where 
+        helper : ∀{arity metas metasL metasR k} -> 
+            {psL : Vec (kpat K metasL) arity} -> 
+            {psR : Vec (kpat K metasR) arity} -> 
+            {ps : Vec (kpat K metas) arity} -> 
+            {metas' : nat} -> 
+            (p' : pat metas') → 
+            lb (T k psL) (T k psR) p' → 
+            T k ps ⊒ p'
+        helper p' (LB (Refine s x) (Refine s₁ x₁)) with limit {!   !} {!   !}
+        ... | thing = Refine {!   !} {!   !}
 
-    glb (X xL) (X xR) p (LB (Refine sL (X-subst-eq x₂)) (Refine sR (X-subst-eq x₃))) = 
-        CR {metas' = suc zero} (X zero) (GLB (LB (var-gt xL (X zero)) (var-gt xR (X zero))) gt)
-            where 
-            gt : {metas' : nat} (p' : pat metas') -> lb (X xL) (X xR) p' -> X zero ⊒ p'
-            gt p' z = Refine (p' ∷ []) (X-subst-eq zero-index-eq)
+    data GLBResult {metasL metasR : nat} (pL : pat metasL) (pR : pat metasR) : Set where 
+        CR : {metas' : nat} ->
+            (p' : pat metas') -> 
+            pL ⊓ pR ＝ p' ->
+            GLBResult pL pR
 
-    glb (T k psL) (X x) p (LB (Refine sL (T-subst-eq mse)) (Refine sR (X-subst-eq ie))) =
-        CR (T k psL) (GLB (LB (gt-refl (T k psL)) (var-gt x (T k psL))) gt)
-            where 
-            gt : {metas' : nat} (p' : pat metas') -> lb (T k psL) (X x) p' → T k psL ⊒ p'
-            gt p' (LB g _) = g
+    data MultiGLBResult {arity metasL metasR : nat} (psL : Vec (kpat K metasL) arity) (psR : Vec (kpat K metasR) arity) : Set where 
+        MCR : {metas' : nat} ->
+            (ps' : Vec (kpat K metas') arity) -> 
+            psL m⊓ psR ＝ ps' ->
+            MultiGLBResult psL psR
 
-    glb (X x) (T k psR) p (LB (Refine sL (X-subst-eq ie)) (Refine sR (T-subst-eq mse))) = 
-        CR (T k psR) (GLB (LB (var-gt x (T k psR)) (gt-refl (T k psR))) gt)
-            where 
-            gt : {metas' : nat} (p' : pat metas') -> lb (X x) (T k psR) p' → T k psR ⊒ p'
-            gt p' (LB _ g) = g
+    mutual 
+        multi-glb : ∀{arity metasL metasR metas} -> 
+            (psL : Vec (kpat K metasL) arity) -> 
+            (psR : Vec (kpat K metasR) arity) -> 
+            (ps : Vec (kpat K metas) arity) -> 
+            MultiGLBResult psL psR
+        multi-glb psL psR ps = {!   !}
 
-    glb (T k psL) (T .k psR) p (LB (Refine sL (T-subst-eq x₂)) (Refine sR (T-subst-eq x₃))) = {!   !}
+        glb : ∀{metasL metasR metas} -> 
+            (pL : pat metasL) -> 
+            (pR : pat metasR) -> 
+            (p : pat metas) -> 
+            lb pL pR p -> 
+            GLBResult pL pR
+
+        glb (X xL) (X xR) p (LB (Refine sL (X-subst-eq x₂)) (Refine sR (X-subst-eq x₃))) = 
+            CR {metas' = suc zero} (X zero) (GLB (LB (var-gt xL (X zero)) (var-gt xR (X zero))) gt)
+                where 
+                gt : {metas' : nat} (p' : pat metas') -> lb (X xL) (X xR) p' -> X zero ⊒ p'
+                gt p' z = Refine (p' ∷ []) (X-subst-eq zero-index-eq)
+
+        glb (T k psL) (X x) p (LB (Refine sL (T-subst-eq mse)) (Refine sR (X-subst-eq ie))) =
+            CR (T k psL) (GLB (LB (gt-refl (T k psL)) (var-gt x (T k psL))) gt)
+                where 
+                gt : {metas' : nat} (p' : pat metas') -> lb (T k psL) (X x) p' → T k psL ⊒ p'
+                gt p' (LB g _) = g
+
+        glb (X x) (T k psR) p (LB (Refine sL (X-subst-eq ie)) (Refine sR (T-subst-eq mse))) = 
+            CR (T k psR) (GLB (LB (var-gt x (T k psR)) (gt-refl (T k psR))) gt)
+                where 
+                gt : {metas' : nat} (p' : pat metas') -> lb (X x) (T k psR) p' → T k psR ⊒ p'
+                gt p' (LB _ g) = g
+
+        glb (T k psL) (T .k psR) (T .k ps) (LB (Refine sL (T-subst-eq mseL)) (Refine sR (T-subst-eq mseR))) 
+            with multi-glb psL psR ps
+        ... | MCR ps' x = CR (T k ps') {!   !}
+            --CR (T k {!   !}) (GLB (LB (Refine {!   !} (T-subst-eq {!   !})) (Refine {!   !} (T-subst-eq {!   !}))) {!   !})
