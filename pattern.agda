@@ -159,25 +159,49 @@ module Pattern ((Language K _b⇒1_) : language) where
         p ⊒ p
     gt-refl {metas} p = Refine (id-sub metas) (id-subst-eq p)
 
+    m⊒-T⊒ : ∀{arity metasL metasR k} -> 
+        {psL : Vec (kpat K metasL) arity} -> 
+        {psR : Vec (kpat K metasR) arity} -> 
+        psL m⊒ psR -> 
+        T k psL ⊒ T k psR
+    m⊒-T⊒ (MRefine s x) = Refine s (T-subst-eq x)
+
+    T⊒-m⊒ : ∀{arity metasL metasR k} -> 
+        {psL : Vec (kpat K metasL) arity} -> 
+        {psR : Vec (kpat K metasR) arity} -> 
+        T k psL ⊒ T k psR ->
+        psL m⊒ psR
+    T⊒-m⊒ (Refine s (T-subst-eq x)) = (MRefine s x)
+
+    mlb-Tlb : ∀{arity metas metasL metasR k} -> 
+        {psL : Vec (kpat K metasL) arity} -> 
+        {psR : Vec (kpat K metasR) arity} -> 
+        {ps : Vec (kpat K metas) arity} -> 
+        mlb psL psR ps -> 
+        lb (T k psL) (T k psR) (T k ps)
+    mlb-Tlb (MLB L R) = LB (m⊒-T⊒ L) (m⊒-T⊒ R)
+
+    Tlb-mlb : ∀{arity metas metasL metasR k} -> 
+        {psL : Vec (kpat K metasL) arity} -> 
+        {psR : Vec (kpat K metasR) arity} -> 
+        {ps : Vec (kpat K metas) arity} -> 
+        lb (T k psL) (T k psR) (T k ps) ->
+        mlb psL psR ps
+    Tlb-mlb (LB L R) = MLB (T⊒-m⊒ L) (T⊒-m⊒ R)
+
     m⊓-T⊓ : ∀{arity metas metasL metasR k} -> 
         {psL : Vec (kpat K metasL) arity} -> 
         {psR : Vec (kpat K metasR) arity} -> 
         {ps : Vec (kpat K metas) arity} -> 
         psL m⊓ psR ＝ ps -> 
         T k psL ⊓ T k psR ＝ T k ps
-    m⊓-T⊓ (MGLB (MLB (MRefine s seq) (MRefine s' seq')) limit) = 
-        GLB (LB (Refine s (T-subst-eq seq)) (Refine s' (T-subst-eq seq'))) helper
+    m⊓-T⊓ {k = k} {psL = psL} {psR = psR} {ps = ps} (MGLB l limit) = GLB (mlb-Tlb l) helper
         where 
-        helper : ∀{arity metas metasL metasR k} -> 
-            {psL : Vec (kpat K metasL) arity} -> 
-            {psR : Vec (kpat K metasR) arity} -> 
-            {ps : Vec (kpat K metas) arity} -> 
-            {metas' : nat} -> 
+        helper : ∀{metas'} ->
             (p' : pat metas') → 
             lb (T k psL) (T k psR) p' → 
             T k ps ⊒ p'
-        helper p' (LB (Refine s x) (Refine s₁ x₁)) with limit {!   !} {!   !}
-        ... | thing = Refine {!   !} {!   !}
+        helper (T k ps') (LB (Refine s (T-subst-eq x)) r) = m⊒-T⊒ (limit ps' (Tlb-mlb (LB (Refine s (T-subst-eq x)) r))) 
 
     data GLBResult {metasL metasR : nat} (pL : pat metasL) (pR : pat metasR) : Set where 
         CR : {metas' : nat} ->
@@ -226,5 +250,4 @@ module Pattern ((Language K _b⇒1_) : language) where
 
         glb (T k psL) (T .k psR) (T .k ps) (LB (Refine sL (T-subst-eq mseL)) (Refine sR (T-subst-eq mseR))) 
             with multi-glb psL psR ps
-        ... | MCR ps' x = CR (T k ps') {!   !}
-            --CR (T k {!   !}) (GLB (LB (Refine {!   !} (T-subst-eq {!   !})) (Refine {!   !} (T-subst-eq {!   !}))) {!   !})
+        ... | MCR ps' x = CR (T k ps') (m⊓-T⊓ x)
