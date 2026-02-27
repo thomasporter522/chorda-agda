@@ -2,6 +2,7 @@ open import Data.Nat
 open import Data.Vec hiding ([_])
 open import Data.Empty
 open import Data.Product hiding (map)
+open import Data.Sum hiding (map)
 open import Relation.Binary.PropositionalEquality hiding ([_])
 
 postulate 
@@ -31,9 +32,11 @@ s [ K k n ps ] = K k n (map (λ p -> (s [ p ])) ps)
 infixr 30 _[_]
 
 data _↦[_]_ : Pattern -> Rule -> Pattern -> Set where 
-    Step : (p1 p2 : Pattern)
+    Step : (t1 t2 p1 p2 : Pattern)
         -> (s : Sub)
-        -> s [ p1 ] ↦[ p1 ↦ p2 ] s [ p2 ]
+        -> t1 ≡ s [ p1 ]
+        -> t2 ≡ s [ p2 ]
+        -> t1 ↦[ p1 ↦ p2 ] t2
 
 _∘_ : Sub -> Sub -> Sub 
 (s1 ∘ s2) x = s1 [ s2 x ]
@@ -58,13 +61,43 @@ data _∘r_≡_ : Rule -> Rule -> Rule -> Set where
         -> s1 , s2 mgu p2 , p3 
         -> (p1 ↦ p2) ∘r (p3 ↦ p4) ≡ (s1 [ p1 ] ↦ s2 [ p4 ])
 
-existence : ∀{t1 t2 t3 r1 r2}
-    -> (t1 ↦[ r1 ] t2) 
-    -> (t2 ↦[ r2 ] t3)
-    -> ∃[ r ] r1 ∘r r2 ≡ r 
-existence {t1} {.(s1 [ p2 ])} {.(s2 [ p4 ])} {p1 ↦ p2} {p3 ↦ p4} (Step .p1 .p2 s1) (Step .p3 .p4 s2) = {! step2  !}
+Ruleset : Set₁ 
+Ruleset = Rule -> Set 
 
-generalization : ∀{p1 p2 s1 s2}
-    -> s1 , s2 unifies p1 , p2
-    -> ∃[ s1' ] ∃[ s2' ] s1' , s2' mgu p1 , p2
-generalization u = {!   !}
+data _↦*[_]_ : Pattern -> Ruleset -> Pattern -> Set₁ where 
+    Refl : (p : Pattern) 
+        -> (R : Ruleset) 
+        -> p ↦*[ R ] p
+    Cons : ∀{p1 p2 p3 R r}
+        -> R r
+        -> p1 ↦*[ R ] p2
+        -> p2 ↦[ r ] p3
+        -> p1 ↦*[ R ] p3
+
+_↦̸[_] : Pattern -> Ruleset -> Set
+p ↦̸[ R ] = (p' : Pattern) 
+    -> (r : Rule) 
+    -> R r 
+    -> p ↦[ r ] p'
+    -> ⊥
+
+data _=>[_]_ : Pattern -> Ruleset -> Pattern -> Set₁ where 
+    Eval : ∀{p1 p2 R}
+        -> p1 ↦*[ R ] p2 
+        -> p2 ↦̸[ R ]
+        -> p1 =>[ R ] p2
+
+data _≅_ (R1 R2 : Ruleset) : Set₁ where 
+    Equiv : (∀{p1 p2} 
+            -> p1 =>[ R1 ] p2
+            -> p1 =>[ R2 ] p2)
+        -> (∀{p1 p2} 
+            -> p1 =>[ R1 ] p2
+            -> p1 =>[ R2 ] p2)
+        -> R1 ≅ R2
+
+_∪[_] : Ruleset -> Rule -> Ruleset 
+(R ∪[ r ]) r' = R r' ⊎ r' ≡ r
+
+infixr 30 _∪[_]
+
