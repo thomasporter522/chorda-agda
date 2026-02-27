@@ -214,14 +214,21 @@ module Pattern ((Language K _b⇒1_) : language) where
             (ps' : Vec (kpat K metas') arity) -> 
             psL m⊓ psR ＝ ps' ->
             MultiGLBResult psL psR
+    
+    -- mlb∷ : 
+    --     (pL ∷ psL) (pR ∷ psR) (p ∷ ps) -> 
+
 
     mutual 
         multi-glb : ∀{arity metasL metasR metas} -> 
             (psL : Vec (kpat K metasL) arity) -> 
             (psR : Vec (kpat K metasR) arity) -> 
             (ps : Vec (kpat K metas) arity) -> 
+            mlb psL psR ps -> 
             MultiGLBResult psL psR
-        multi-glb psL psR ps = {!   !}
+        multi-glb [] [] [] _ = {!   !}
+        multi-glb (pL ∷ psL) (pR ∷ psR) (p ∷ ps) l with glb pL pR p {!   !} | multi-glb psL psR ps {!   !}
+        ... | thing1 | thing2 = MCR {!   !} {!   !}
 
         glb : ∀{metasL metasR metas} -> 
             (pL : pat metasL) -> 
@@ -249,5 +256,5 @@ module Pattern ((Language K _b⇒1_) : language) where
                 gt p' (LB _ g) = g
 
         glb (T k psL) (T .k psR) (T .k ps) (LB (Refine sL (T-subst-eq mseL)) (Refine sR (T-subst-eq mseR))) 
-            with multi-glb psL psR ps
+            with multi-glb psL psR ps (Tlb-mlb {k = k} (LB (Refine sL (T-subst-eq mseL)) (Refine sR (T-subst-eq mseR))))
         ... | MCR ps' x = CR (T k ps') (m⊓-T⊓ x)
