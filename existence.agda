@@ -5,7 +5,7 @@ open import Data.Product hiding (map)
 open import Data.Sum hiding (map)
 open import Relation.Binary.PropositionalEquality hiding ([_])
 
-open import main
+open import core
 
 generalization : ∀{p1 p2 s1 s2}
     -> s1 , s2 unifies p1 , p2
