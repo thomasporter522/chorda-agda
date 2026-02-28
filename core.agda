@@ -70,9 +70,20 @@ data _↦*[_]_ : Pattern -> Ruleset -> Pattern -> Set₁ where
         -> p ↦*[ R ] p
     Cons : ∀{p1 p2 p3 R r}
         -> R r
-        -> p1 ↦*[ R ] p2
-        -> p2 ↦[ r ] p3
+        -> p1 ↦[ r ] p2
+        -> p2 ↦*[ R ] p3
         -> p1 ↦*[ R ] p3
+
+data _↦+[_]_ : Pattern -> Ruleset -> Pattern -> Set₁ where 
+    Step : ∀{p1 p2 R r}
+        -> R r
+        -> p1 ↦[ r ] p2
+        -> p1 ↦+[ R ] p2
+    Cons : ∀{p1 p2 p3 R r}
+        -> R r
+        -> p1 ↦[ r ] p2
+        -> p2 ↦+[ R ] p3
+        -> p1 ↦+[ R ] p3
 
 _↦̸[_] : Pattern -> Ruleset -> Set
 p ↦̸[ R ] = (p' : Pattern) 
@@ -92,8 +103,8 @@ data _≅_ (R1 R2 : Ruleset) : Set₁ where
             -> p1 =>[ R1 ] p2
             -> p1 =>[ R2 ] p2)
         -> (∀{p1 p2} 
-            -> p1 =>[ R1 ] p2
-            -> p1 =>[ R2 ] p2)
+            -> p1 =>[ R2 ] p2
+            -> p1 =>[ R1 ] p2)
         -> R1 ≅ R2
 
 _∪[_] : Ruleset -> Rule -> Ruleset 
