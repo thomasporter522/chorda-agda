@@ -6,6 +6,7 @@ open import Data.Sum hiding (map)
 open import Relation.Binary.PropositionalEquality hiding ([_])
 
 open import core
+open import lemmas
 
 ↦+-↦* : ∀{p1 p2 R}
     -> p1 ↦+[ R ] p2
@@ -20,21 +21,6 @@ open import core
 ↦*-trans (Refl _ _) steps2 = steps2
 ↦*-trans (Cons in1 step steps1) steps2 = Cons in1 step (↦*-trans steps1 steps2)
 
-mutual 
-    map-fusion : ∀{s1 s2 n} 
-        -> {ps : Vec Pattern n}
-        -> map (_[_] s1) (map (_[_] s2) ps) ≡ map (_[_] (s1 ∘ s2)) ps
-    map-fusion {ps = []} = refl
-    map-fusion {s1} {s2} {ps = p ∷ ps} 
-        rewrite ∘-eq {s1} {s2} {p} 
-        rewrite map-fusion {s1} {s2} {ps = ps} = refl
-
-    ∘-eq : ∀{s1 s2 p}
-        -> s1 [ s2 [ p ] ] ≡ (s1 ∘ s2) [ p ]
-    ∘-eq {p = X x} = refl
-    ∘-eq {s1} {s2} {K k n ps} 
-        rewrite map-fusion {s1} {s2} {ps = ps} = refl
-
 validity-lemma : ∀{R p1 p2 r1 r2 r}
     -> R r1 
     -> R r2 
@@ -44,10 +30,10 @@ validity-lemma : ∀{R p1 p2 r1 r2 r}
 validity-lemma {R} in1 in2 (Comp {p1} {p2} {p3} {p4} s1 s2 (MGU (Unify eq) _)) (Step _ _ _ _ s refl refl) = Cons in1 step1 step2
     where 
     step1 : (s [ s1 [ p1 ] ]) ↦[ p1 ↦ p2 ] (s [ s1 [ p2 ] ])
-    step1 = (Step _ _ _ _ (s ∘ s1) (∘-eq {s} {s1} {p1}) (∘-eq {s} {s1} {p2}))
+    step1 = (Step _ _ _ _ (s ∘ s1) (∘-eq s s1 p1) (∘-eq s s1 p2))
 
     step2 : (s [ s1 [ p2 ] ]) ↦+[ R ] (s [ s2 [ p4 ] ]) 
-    step2 rewrite eq = (Step in2 (Step _ _ _ _ (s ∘ s2) (∘-eq {s} {s2} {p3}) (∘-eq {s} {s2} {p4})))
+    step2 rewrite eq = (Step in2 (Step _ _ _ _ (s ∘ s2) (∘-eq s s2 p3) (∘-eq s s2 p4)))
 
 validity : ∀{r1 r2 r R}
     -> R r1 

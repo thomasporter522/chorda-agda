@@ -61,6 +61,15 @@ data _∘r_≡_ : Rule -> Rule -> Rule -> Set where
         -> s1 , s2 mgu p2 , p3 
         -> (p1 ↦ p2) ∘r (p3 ↦ p4) ≡ (s1 [ p1 ] ↦ s2 [ p4 ])
 
+data _≡r_ : Rule -> Rule -> Set where
+    REquiv : ∀{p1 p2 p3 p4}
+        -> (s1 s2 : Sub)
+        -> s1 [ p1 ] ≡ p3
+        -> s1 [ p2 ] ≡ p4
+        -> s2 [ p3 ] ≡ p1
+        -> s2 [ p4 ] ≡ p2
+        -> (p1 ↦ p2) ≡r (p3 ↦ p4)
+
 Ruleset : Set₁ 
 Ruleset = Rule -> Set 
 
