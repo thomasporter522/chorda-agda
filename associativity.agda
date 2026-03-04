@@ -44,7 +44,7 @@ associativity
     = REquiv s517 s846 helper1 {!   !} {!   !} helper2
         where 
         helper1 : s517 [ s5 [ p1 ] ] ≡ s7 [ s1 [ p1 ] ] 
-        helper1 
+        helper1 x
             rewrite ∘-eq s517 s5 p1
             rewrite sym e517 
             rewrite sym (∘-eq s7 s1 p1) = refl
@@ -53,3 +53,12 @@ associativity
             rewrite ∘-eq s846 s8 p6
             rewrite sym e846
             rewrite sym (∘-eq s6 s4 p6) = refl
+        -- potentially useful fact:
+        -- s6327 ∘ s6 ∘ s3 = s7 ∘ s2 
+        -- s7236 ∘ s7 ∘ s2 = s6 ∘ s3 
+        -- therefore s6 ∘ s3 ≡ s7 ∘ s2 
+
+        -- I can only prove A(s7(s1(p1))) = s5(p1)
+        -- by proving that A ∘ s7 ∘ s1 = s5.
+        -- Why? 
+        -- Because I have no assumptions that refer to p1. 
