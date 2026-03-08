@@ -1,4 +1,5 @@
 open import Data.Nat
+open import Data.Fin
 open import Data.Vec hiding ([_])
 open import Data.Empty
 open import Data.Product hiding (map)
@@ -121,3 +122,20 @@ _∪[_] : Ruleset -> Rule -> Ruleset
 
 infixr 30 _∪[_]
 
+data pf : Set₁ where 
+    PF : (dom : Pattern -> Set)
+        -> (f : (p : Pattern) -> dom p -> Pattern)
+        -> pf
+
+data _v∈_ (x : Var) : Pattern -> Set where 
+    InX : x v∈ X x
+    InK : ∀{k n ps} 
+        -> (i : Fin n)
+        -> x v∈ lookup ps i
+        -> x v∈ K k n ps 
+
+functional : Rule -> Set
+functional (p1 ↦ p2) = (x : Var) -> x v∈ p2 -> x v∈ p1
+
+⟦_⟧ : (r : Rule) -> functional r -> pf 
+⟦_⟧ r f = {! r  !}
