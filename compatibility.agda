@@ -20,6 +20,10 @@ data ∘graph (g1 g2 : Pattern -> Pattern -> Set) (p1 p2 : Pattern) : Set where
             -> g2 p p2
             -> (∘graph g1 g2) p1 p2
 
+≡pf-refl : ∀{f}
+    -> f ≡pf f
+≡pf-refl {PF _ _} p1 p2 = (λ z → z) , (λ z → z)
+
 ≡pf-sym : ∀{f1 f2}
     -> f1 ≡pf f2 
     -> f2 ≡pf f1
@@ -133,7 +137,7 @@ mutual
 
     helper2 : ⟦⟧graph (s1 [ p1 ]) (s2 [ p4 ]) p5 p6 → ∘graph (⟦⟧graph p1 p2) (⟦⟧graph p3 p4) p5 p6
     helper2 (G s3 eq1 eq2) = G (s3 [ s1 [ p2 ] ]) (G (s3 ∘ s1) eq1 refl) (G (s3 ∘ s2) (cong (λ p -> s3 [ p ]) (sym u)) eq2)
-    
+
 ∘r-compatible : (r1 r1' r2 r2' r r' : Rule)
     -> (r1 ≡r r1')
     -> (r2 ≡r r2')
@@ -141,4 +145,29 @@ mutual
     -> r1' ∘r r2' ≡ r'
     -> (r ≡r r')
 ∘r-compatible r1 r1' r2 r2' r r' eq1 eq2 c1 c2 with ⟦∘⟧ c1 | ⟦∘⟧ c2 
-... | eq3 | eq4 = ⟦⟧-compatible-inv r r' (≡pf-trans (≡pf-sym eq3) (≡pf-trans (∘pf-≡pf _ _ _ _ (⟦⟧-compatible _ _ eq1) (⟦⟧-compatible _ _ eq2)) eq4))
+... | eq3 | eq4 = ⟦⟧-compatible-inv _ _ (≡pf-trans (≡pf-sym eq3) (≡pf-trans (∘pf-≡pf _ _ _ _ (⟦⟧-compatible _ _ eq1) (⟦⟧-compatible _ _ eq2)) eq4))
+
+
+∘pf-assoc : (f1 f2 f3 : pf)
+    -> (f1 ∘pf (f2 ∘pf f3)) ≡pf ((f1 ∘pf f2) ∘pf f3)
+∘pf-assoc (PF g1 _) (PF g2 _) (PF g3 _) p1 p2 = helper1 , helper2
+    where 
+    helper1 : ∘graph g1 (∘graph g2 g3) p1 p2 → ∘graph (∘graph g1 g2) g3 p1 p2
+    helper1 (G p3 eq1 (G p4 eq2 eq3)) = G p4 (G p3 eq1 eq2) eq3
+
+    helper2 : ∘graph (∘graph g1 g2) g3 p1 p2 → ∘graph g1 (∘graph g2 g3) p1 p2
+    helper2 (G p4 (G p3 eq1 eq2) eq3) = G p3 eq1 (G p4 eq2 eq3)
+
+∘r-assoc : ∀{r1 r2 r3 r12 r23 r123 r123'}
+    -> r1 ∘r r2 ≡ r12 
+    -> r2 ∘r r3 ≡ r23 
+    -> r1 ∘r r23 ≡ r123
+    -> r12 ∘r r3 ≡ r123'
+    -> r123 ≡r r123'
+∘r-assoc c1 c2 c3 c4 with ⟦∘⟧ c1 | ⟦∘⟧ c2 | ⟦∘⟧ c3 | ⟦∘⟧ c4 
+... | eq1 | eq2 | eq3 | eq4 = 
+    ⟦⟧-compatible-inv _ _ 
+    (≡pf-trans (≡pf-sym eq3) 
+    (≡pf-trans (∘pf-≡pf _ _ _ _ ≡pf-refl (≡pf-sym eq2)) 
+    (≡pf-trans (∘pf-assoc _ _ _) 
+    (≡pf-trans (∘pf-≡pf _ _ _ _ eq1 ≡pf-refl) eq4))))
