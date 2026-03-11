@@ -44,11 +44,11 @@ PF g1 f1 ∘pf PF g2 f2 = PF (∘graph g1 g2) graph-functional
         rewrite f1 p1 p12 p13 g112 g113 
         rewrite f2 p13 p2 p3 g122 g133 = refl
     
-∘pf-≡pf : (f1 f2 f1' f2' : pf)
+∘pf-≡pf : {f1 f2 f1' f2' : pf}
     -> (f1 ≡pf f1')
     -> (f2 ≡pf f2')
     -> ((f1 ∘pf f2) ≡pf (f1' ∘pf f2'))
-∘pf-≡pf (PF g1 f1) (PF g2 f2) (PF g1' f1') (PF g2' f2') eq1 eq2 p1 p2 = helper1 , helper2
+∘pf-≡pf {PF g1 f1} {PF g2 f2} {PF g1' f1'} {PF g2' f2'} eq1 eq2 p1 p2 = helper1 , helper2
     where 
     helper1 : ∘graph g1 g2 p1 p2 → ∘graph g1' g2' p1 p2
     helper1 (G p in1 in2) = G p (eq1 p1 p .proj₁ in1) (eq2 p p2 .proj₁ in2)
@@ -70,10 +70,10 @@ data ⟦⟧graph (p1 p2 p3 p4 : Pattern) : Set where
     ... | eq5 = trans (sym eq2) (trans eq5 eq4)
 
 ⟦⟧-compatible : 
-    (r1 r2 : Rule)
+    {r1 r2 : Rule}
     -> r1 ≡r r2 
     -> ⟦ r1 ⟧ ≡pf ⟦ r2 ⟧
-⟦⟧-compatible (p1 ↦ p2 [ f1 ]) (p3 ↦ p4 [ f2 ]) (REquiv s1 s2 eq1 eq2 eq3 eq4) p5 p6 = helper1 , helper2
+⟦⟧-compatible {p1 ↦ p2 [ f1 ]} {p3 ↦ p4 [ f2 ]} (REquiv s1 s2 eq1 eq2 eq3 eq4) p5 p6 = helper1 , helper2
     where 
     helper1 : ⟦⟧graph p1 p2 p5 p6 → ⟦⟧graph p3 p4 p5 p6
     helper1 (G s eq5 eq6) = G (s ∘ s2) subhelper1 subhelper2
@@ -111,12 +111,12 @@ mutual
 {-# REWRITE sid-eq #-}
 
 ⟦⟧-compatible-inv : 
-    (r1 r2 : Rule)
+    {r1 r2 : Rule}
     -> ⟦ r1 ⟧ ≡pf ⟦ r2 ⟧
     -> r1 ≡r r2 
-⟦⟧-compatible-inv (p1 ↦ p2 [ f1 ]) (p3 ↦ p4 [ f2 ]) eq with eq p1 p2 | eq p3 p4
-⟦⟧-compatible-inv (p1 ↦ p2 [ f1 ]) (p3 ↦ p4 [ f2 ]) eq | eq1 , eq2 | eq3 , eq4 with eq1 (G sid refl refl) | eq4 (G sid refl refl)
-⟦⟧-compatible-inv (p1 ↦ p2 [ f1 ]) (p3 ↦ p4 [ f2 ]) eq | eq1 , eq2 | eq3 , eq4 | G s1 eq5 eq6 | G s2 eq7 eq8 = REquiv s2 s1 eq7 eq8 eq5 eq6
+⟦⟧-compatible-inv {p1 ↦ p2 [ f1 ]} {p3 ↦ p4 [ f2 ]} eq with eq p1 p2 | eq p3 p4
+⟦⟧-compatible-inv {p1 ↦ p2 [ f1 ]} {p3 ↦ p4 [ f2 ]} eq | eq1 , eq2 | eq3 , eq4 with eq1 (G sid refl refl) | eq4 (G sid refl refl)
+⟦⟧-compatible-inv {p1 ↦ p2 [ f1 ]} {p3 ↦ p4 [ f2 ]} eq | eq1 , eq2 | eq3 , eq4 | G s1 eq5 eq6 | G s2 eq7 eq8 = REquiv s2 s1 eq7 eq8 eq5 eq6
 
 ⟦∘⟧ : {r1 r2 r : Rule}
     -> r1 ∘r r2 ≡ r 
@@ -145,8 +145,10 @@ mutual
     -> r1' ∘r r2' ≡ r'
     -> (r ≡r r')
 ∘r-compatible r1 r1' r2 r2' r r' eq1 eq2 c1 c2 with ⟦∘⟧ c1 | ⟦∘⟧ c2 
-... | eq3 | eq4 = ⟦⟧-compatible-inv _ _ (≡pf-trans (≡pf-sym eq3) (≡pf-trans (∘pf-≡pf _ _ _ _ (⟦⟧-compatible _ _ eq1) (⟦⟧-compatible _ _ eq2)) eq4))
-
+... | eq3 | eq4 = 
+    ⟦⟧-compatible-inv
+    (≡pf-trans (≡pf-sym eq3) 
+    (≡pf-trans (∘pf-≡pf (⟦⟧-compatible eq1) (⟦⟧-compatible eq2)) eq4))
 
 ∘pf-assoc : (f1 f2 f3 : pf)
     -> (f1 ∘pf (f2 ∘pf f3)) ≡pf ((f1 ∘pf f2) ∘pf f3)
@@ -166,8 +168,8 @@ mutual
     -> r123 ≡r r123'
 ∘r-assoc c1 c2 c3 c4 with ⟦∘⟧ c1 | ⟦∘⟧ c2 | ⟦∘⟧ c3 | ⟦∘⟧ c4 
 ... | eq1 | eq2 | eq3 | eq4 = 
-    ⟦⟧-compatible-inv _ _ 
+    ⟦⟧-compatible-inv 
     (≡pf-trans (≡pf-sym eq3) 
-    (≡pf-trans (∘pf-≡pf _ _ _ _ ≡pf-refl (≡pf-sym eq2)) 
+    (≡pf-trans (∘pf-≡pf ≡pf-refl (≡pf-sym eq2)) 
     (≡pf-trans (∘pf-assoc _ _ _) 
-    (≡pf-trans (∘pf-≡pf _ _ _ _ eq1 ≡pf-refl) eq4))))
+    (≡pf-trans (∘pf-≡pf eq1 ≡pf-refl) eq4))))
