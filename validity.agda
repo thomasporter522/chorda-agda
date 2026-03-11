@@ -8,67 +8,6 @@ open import Data.Sum hiding (map)
 open import Relation.Binary.PropositionalEquality hiding ([_])
 
 open import core
--- open import lemmas
-
-data _↦[_]_ : Pattern -> Rule -> Pattern -> Set where 
-    Step : (t1 t2 p1 p2 : Pattern)
-        -> (f : functional p1 p2)
-        -> (s : Sub)
-        -> t1 ≡ s [ p1 ]
-        -> t2 ≡ s [ p2 ]
-        -> t1 ↦[ p1 ↦ p2 [ f ] ] t2
-
-Ruleset : Set₁ 
-Ruleset = Rule -> Set 
-
-data _↦*[_]_ : Pattern -> Ruleset -> Pattern -> Set₁ where 
-    Refl : (p : Pattern) 
-        -> (R : Ruleset) 
-        -> p ↦*[ R ] p
-    Cons : ∀{p1 p2 p3 R r}
-        -> R r
-        -> p1 ↦[ r ] p2
-        -> p2 ↦*[ R ] p3
-        -> p1 ↦*[ R ] p3
-
-data _↦+[_]_ : Pattern -> Ruleset -> Pattern -> Set₁ where 
-    Step : ∀{p1 p2 R r}
-        -> R r
-        -> p1 ↦[ r ] p2
-        -> p1 ↦+[ R ] p2
-    Cons : ∀{p1 p2 p3 R r}
-        -> R r
-        -> p1 ↦[ r ] p2
-        -> p2 ↦+[ R ] p3
-        -> p1 ↦+[ R ] p3
-
-_↦̸[_] : Pattern -> Ruleset -> Set
-p ↦̸[ R ] = (p' : Pattern) 
-    -> (r : Rule) 
-    -> R r 
-    -> p ↦[ r ] p'
-    -> ⊥
-
-data _=>[_]_ : Pattern -> Ruleset -> Pattern -> Set₁ where 
-    Eval : ∀{p1 p2 R}
-        -> p1 ↦*[ R ] p2 
-        -> p2 ↦̸[ R ]
-        -> p1 =>[ R ] p2
-
-data _≅_ (R1 R2 : Ruleset) : Set₁ where 
-    Equiv : (∀{p1 p2} 
-            -> p1 =>[ R1 ] p2
-            -> p1 =>[ R2 ] p2)
-        -> (∀{p1 p2} 
-            -> p1 =>[ R2 ] p2
-            -> p1 =>[ R1 ] p2)
-        -> R1 ≅ R2
-
-_∪[_] : Ruleset -> Rule -> Ruleset 
-(R ∪[ r ]) r' = R r' ⊎ r' ≡ r
-
-infixr 30 _∪[_]
-
 
 ↦+-↦* : ∀{p1 p2 R}
     -> p1 ↦+[ R ] p2
@@ -89,13 +28,13 @@ validity-lemma : ∀{R p1 p2 r1 r2 r}
     -> r1 ∘r r2 ≡ r 
     -> p1 ↦[ r ] p2 
     -> p1 ↦+[ R ] p2
-validity-lemma {R} in1 in2 (Comp {p1} {p2} {p3} {p4} s1 s2 (MGU (Unify eq) _)) (Step _ _ _ _ s refl refl) = Cons in1 step1 step2
+validity-lemma {R} in1 in2 (Comp {p1} {p2} {p3} {p4} f1 f2 s1 s2 (MGU (Unify eq) _)) (Step _ _ _ _ _ s refl refl) = Cons in1 step1 step2
     where 
-    step1 : (s [ s1 [ p1 ] ]) ↦[ p1 ↦ p2 ] (s [ s1 [ p2 ] ])
-    step1 = (Step _ _ _ _ (s ∘ s1) (∘-eq s s1 p1) (∘-eq s s1 p2))
+    step1 : (s [ s1 [ p1 ] ]) ↦[ p1 ↦ p2 [ f1 ] ] (s [ s1 [ p2 ] ])
+    step1 = (Step _ _ _ _ _ (s ∘ s1) (∘-eq s s1 p1) (∘-eq s s1 p2))
 
     step2 : (s [ s1 [ p2 ] ]) ↦+[ R ] (s [ s2 [ p4 ] ]) 
-    step2 rewrite eq = (Step in2 (Step _ _ _ _ (s ∘ s2) (∘-eq s s2 p3) (∘-eq s s2 p4)))
+    step2 rewrite eq = (Step in2 (Step _ _ _ _ _ (s ∘ s2) (∘-eq s s2 p3) (∘-eq s s2 p4)))
 
 validity : ∀{r1 r2 r R}
     -> R r1 
