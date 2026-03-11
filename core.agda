@@ -109,25 +109,31 @@ data _∘r_≡_ : Rule -> Rule -> Rule -> Set where
         -> (mgu : s1 , s2 mgu p2 , p3)
         -> (p1 ↦ p2 [ f1 ]) ∘r (p3 ↦ p4 [ f2 ]) ≡ (s1 [ p1 ] ↦ s2 [ p4 ] [ ∘r-functional p1 p2 p3 p4 f1 f2 s1 s2 mgu ]) 
 
-∘r-compatible : (r1 r1' r2 r2' r r' : Rule)
-    -> (r1 ≡r r1')
-    -> (r2 ≡r r2')
-    -> r1 ∘r r2 ≡ r
-    -> r1' ∘r r2' ≡ r'
-    -> (r ≡r r')
-∘r-compatible 
-    (p1 ↦ p2 [ f1 ]) 
-    (p3 ↦ p4 [ f2 ]) 
-    (p5 ↦ p6 [ f3 ]) 
-    (p7 ↦ p8 [ f4 ])
-    (.(s5 [ p1 ]) ↦ .(s6 [ p6 ]) [ .(∘r-functional p1 p2 p5 p6 f1 f3 s5 s6 mgu1) ]) 
-    (.(s7 [ p3 ]) ↦ .(s8 [ p8 ]) [ .(∘r-functional p3 p4 p7 p8 f2 f4 s7 s8 mgu2) ]) 
-    (REquiv s1 s2 eq1 eq2 eq3 eq4) 
-    (REquiv s3 s4 eq5 eq6 eq7 eq8) 
-    (Comp .f1 .f3 s5 s6 mgu1) 
-    (Comp .f2 .f4 s7 s8 mgu2) = {!   !}
-        
-        -- REquiv {!   !} {!   !} {!   !} {!   !} {!   !} {!   !}
+-- ∘r-compatible : (r1 r1' r2 r2' r r' : Rule)
+--     -> (r1 ≡r r1')
+--     -> (r2 ≡r r2')
+--     -> r1 ∘r r2 ≡ r
+--     -> r1' ∘r r2' ≡ r'
+--     -> (r ≡r r')
+-- ∘r-compatible 
+--     (p1 ↦ p2 [ f1 ]) 
+--     (p1' ↦ p2' [ f1' ]) 
+--     (p3 ↦ p4 [ f2 ]) 
+--     (p3' ↦ p4' [ f2' ])
+--     (.(s3 [ p1 ]) ↦ .(s4 [ p4 ]) [ f3 ]) 
+--     (.(s3' [ p1' ]) ↦ .(s4' [ p4' ]) [ f3' ]) 
+--     (REquiv s1 s2 eq1 eq2 eq3 eq4) 
+--     (REquiv s1' s2' eq5 eq6 eq7 eq8) 
+--     (Comp .f1 .f2 s3 s4 (MGU (Unify u) mgu)) 
+--     (Comp .f1' .f2' s3' s4' (MGU (Unify u') mgu')) 
+--     with mgu (s3' ∘ s1) (s4' ∘ s1') (Unify helper1) | mgu' (s3 ∘ s2) (s4 ∘ s2') (Unify helper2)
+--     where 
+--     helper1 : (s3' ∘ s1) [ p2 ] ≡ (s4' ∘ s1') [ p3 ] 
+--     helper1 rewrite eq2 rewrite eq5 = u'
+--     helper2 : (s3 ∘ s2) [ p2' ] ≡ (s4 ∘ s2') [ p3' ]
+--     helper2 rewrite eq4 rewrite eq7 = u
+-- ... | Prec s6 eq9 , Prec s7 eq10 
+--     | Prec s8 eq11 , Prec s9 eq12 = REquiv {!   !} {!   !} {!   !} {!   !} {!   !} {!   !}
 
 Ruleset : Set₁ 
 Ruleset = Rule -> Set 
@@ -185,31 +191,65 @@ data pf : Set₁ where
         -> (functional : (p1 p2 p3 : Pattern) -> graph p1 p2 -> graph p1 p3 -> p2 ≡ p3)
         -> pf
 
-_∘pf_ : pf -> pf -> pf 
-PF g1 f1 ∘pf PF g2 f2 = PF graph graph-functional
-    where 
+_≡pf_ : pf -> pf -> Set
+PF g1 f1 ≡pf PF g2 f2 = (p1 p2 : Pattern) -> (g1 p1 p2 -> g2 p1 p2) × (g2 p1 p2 -> g1 p1 p2)
 
-    data graph (p1 p2 : Pattern) : Set where
+data ∘graph (g1 g2 : Pattern -> Pattern -> Set) (p1 p2 : Pattern) : Set where
         G : (p : Pattern)
             -> g1 p1 p
             -> g2 p p2
-            -> graph p1 p2
-    
-    graph-functional : (p1 p2 p3 : Pattern) -> graph p1 p2 -> graph p1 p3 -> p2 ≡ p3
+            -> (∘graph g1 g2) p1 p2
+
+_∘pf_ : pf -> pf -> pf 
+PF g1 f1 ∘pf PF g2 f2 = PF (∘graph g1 g2) graph-functional
+    where 
+    graph-functional : (p1 p2 p3 : Pattern) -> (∘graph g1 g2) p1 p2 -> (∘graph g1 g2) p1 p3 -> p2 ≡ p3
     graph-functional p1 p2 p3 (G p12 g112 g122) (G p13 g113 g133) 
         rewrite f1 p1 p12 p13 g112 g113 
         rewrite f2 p13 p2 p3 g122 g133 = refl
+    
+∘pf-≡pf : (f1 f2 f1' f2' : pf)
+    -> (f1 ≡pf f1')
+    -> (f2 ≡pf f2')
+    -> ((f1 ∘pf f2) ≡pf (f1' ∘pf f2'))
+∘pf-≡pf (PF g1 f1) (PF g2 f2) (PF g1' f1') (PF g2' f2') eq1 eq2 p1 p2 = helper1 , helper2
+    where 
+    helper1 : ∘graph g1 g2 p1 p2 → ∘graph g1' g2' p1 p2
+    helper1 (G p in1 in2) = G p (eq1 p1 p .proj₁ in1) (eq2 p p2 .proj₁ in2)
+    helper2 : ∘graph g1' g2' p1 p2 → ∘graph g1 g2 p1 p2
+    helper2 (G p in1 in2) = G p (eq1 p1 p .proj₂ in1) (eq2 p p2 .proj₂ in2)
+
+
+data ⟦⟧graph (p1 p2 p3 p4 : Pattern) : Set where
+    G : (s : Sub)
+        -> s [ p1 ] ≡ p3
+        -> s [ p2 ] ≡ p4
+        -> (⟦⟧graph p1 p2) p3 p4
 
 ⟦_⟧ : (r : Rule) -> pf 
-⟦ p1 ↦ p2 [ f ] ⟧ = PF graph graph-functional
-    where 
-
-    data graph (p3 p4 : Pattern) : Set where
-        G : (s : Sub)
-            -> s [ p1 ] ≡ p3
-            -> s [ p2 ] ≡ p4
-            -> graph p3 p4
-
-    graph-functional : (p3 p4 p5 : Pattern) → graph p3 p4 → graph p3 p5 → p4 ≡ p5
+⟦ p1 ↦ p2 [ f ] ⟧ = PF (⟦⟧graph p1 p2) graph-functional
+    where
+    graph-functional : (p3 p4 p5 : Pattern) → (⟦⟧graph p1 p2) p3 p4 → (⟦⟧graph p1 p2) p3 p5 → p4 ≡ p5
     graph-functional p3 p4 p5 (G s1 eq1 eq2) (G s2 eq3 eq4) with f s1 s2 (trans eq1 (sym eq3))
     ... | eq5 = trans (sym eq2) (trans eq5 eq4)
+
+⟦⟧-compatible : 
+    (r1 r2 : Rule)
+    -> r1 ≡r r2 
+    -> ⟦ r1 ⟧ ≡pf ⟦ r2 ⟧
+⟦⟧-compatible (p1 ↦ p2 [ f1 ]) (p3 ↦ p4 [ f2 ]) (REquiv s1 s2 eq1 eq2 eq3 eq4) p5 p6 = helper1 , helper2
+    where 
+    helper1 : ⟦⟧graph p1 p2 p5 p6 → ⟦⟧graph p3 p4 p5 p6
+    helper1 (G s eq5 eq6) = G (s ∘ s2) subhelper1 subhelper2
+        where 
+        subhelper1 : (s ∘ s2) [ p3 ] ≡ p5
+        subhelper1 rewrite eq3 rewrite eq5 = refl
+        subhelper2 : (s ∘ s2) [ p4 ] ≡ p6
+        subhelper2 rewrite eq4 rewrite eq6 = refl
+    helper2 : ⟦⟧graph p3 p4 p5 p6 → ⟦⟧graph p1 p2 p5 p6
+    helper2 (G s eq5 eq6) = G (s ∘ s1) subhelper1 subhelper2
+        where 
+        subhelper1 : (s ∘ s1) [ p1 ] ≡ p5
+        subhelper1 rewrite eq1 rewrite eq5 = refl
+        subhelper2 : (s ∘ s1) [ p2 ] ≡ p6
+        subhelper2 rewrite eq2 rewrite eq6 = refl
