@@ -21,13 +21,6 @@ data Pattern : Set where
     X : Var -> Pattern
     K : Constructor -> (n : ℕ) -> Vec Pattern n -> Pattern 
 
--- data _v∈_ (x : Var) : Pattern -> Set where 
---     InX : x v∈ X x
---     InK : ∀{k n ps} 
---         -> (i : Fin n)
---         -> x v∈ lookup ps i
---         -> x v∈ K k n ps 
-
 Sub : Set 
 Sub = Var -> Pattern
 
@@ -115,6 +108,26 @@ data _∘r_≡_ : Rule -> Rule -> Rule -> Set where
         -> (s1 s2 : Sub)
         -> (mgu : s1 , s2 mgu p2 , p3)
         -> (p1 ↦ p2 [ f1 ]) ∘r (p3 ↦ p4 [ f2 ]) ≡ (s1 [ p1 ] ↦ s2 [ p4 ] [ ∘r-functional p1 p2 p3 p4 f1 f2 s1 s2 mgu ]) 
+
+∘r-compatible : (r1 r1' r2 r2' r r' : Rule)
+    -> (r1 ≡r r1')
+    -> (r2 ≡r r2')
+    -> r1 ∘r r2 ≡ r
+    -> r1' ∘r r2' ≡ r'
+    -> (r ≡r r')
+∘r-compatible 
+    (p1 ↦ p2 [ f1 ]) 
+    (p3 ↦ p4 [ f2 ]) 
+    (p5 ↦ p6 [ f3 ]) 
+    (p7 ↦ p8 [ f4 ])
+    (.(s5 [ p1 ]) ↦ .(s6 [ p6 ]) [ .(∘r-functional p1 p2 p5 p6 f1 f3 s5 s6 mgu1) ]) 
+    (.(s7 [ p3 ]) ↦ .(s8 [ p8 ]) [ .(∘r-functional p3 p4 p7 p8 f2 f4 s7 s8 mgu2) ]) 
+    (REquiv s1 s2 eq1 eq2 eq3 eq4) 
+    (REquiv s3 s4 eq5 eq6 eq7 eq8) 
+    (Comp .f1 .f3 s5 s6 mgu1) 
+    (Comp .f2 .f4 s7 s8 mgu2) = {!   !}
+        
+        -- REquiv {!   !} {!   !} {!   !} {!   !} {!   !} {!   !}
 
 Ruleset : Set₁ 
 Ruleset = Rule -> Set 
