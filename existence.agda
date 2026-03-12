@@ -8,6 +8,7 @@ open import Data.Unit
 open import Data.Product hiding (map)
 open import Data.Sum hiding (map)
 open import Relation.Binary.PropositionalEquality hiding ([_])
+open import Relation.Nullary.Decidable hiding (map)
 
 open import core
 
@@ -100,13 +101,14 @@ data SplitResult (p1 p2 : Pattern) : Set where
         -> (n : ℕ)
         -> (ps : Vec Pattern n) 
         -- -> and more things, as needed
+        -- something about how every unifier s1 , s2 for p1 , p2 needs to map x to K k n ps' for some ps'
         -> SplitResult p1 p2
 
 mutual 
 
-    splitters : ∀{s1 s2 p1 p2}
-            -- -> s1 , s2 unifies p1 , p2
-            -> SplitResults p1 p2 
+    -- splitters : ∀{s1 s2 p1 p2}
+    --         -- -> s1 , s2 unifies p1 , p2
+    --         -> SplitResults p1 p2 
 
     splitter : ∀{s1 s2 p1 p2}
             -> s1 , s2 unifies p1 , p2
@@ -115,6 +117,11 @@ mutual
     splitter {s1} {s2} {K k1 n1 ps1} {K k2 n2 ps2} u = {!   !}
     splitter {s1} {s2} {X x} {K x₁ n x₂} u = {!   !}
     splitter {s1} {s2} {K x n x₁} {X x₂} u = {!   !}
+    
+    step-sub : Var -> Sub 
+    step-sub x x' with Var-≟ x x' 
+    step-sub x x' | yes refl = {!   !}
+    step-sub x x' | no neq = {!   !}
 
 generalization-sized : ∀{s1 s2 p1 p2}
     -> (n : ℕ)
@@ -124,7 +131,15 @@ generalization-sized : ∀{s1 s2 p1 p2}
 generalization-sized {s1} {s2} {p1} {p2} zero eq uni with size-diff s1 p1 in eq1 | size-diff s2 p2 in eq2
 generalization-sized {s1} {s2} {p1} {p2} zero eq uni | zero | zero with size-diff-zero s1 p1 eq1 | size-diff-zero s2 p2 eq2
 generalization-sized zero eq (Unify u) | zero | zero | ec1 | ec2 rewrite u = generalization-equiv-constructor (equiv-constructor-trans ec1 (equiv-constructor-sym ec2))
-generalization-sized {s1} {s2} {p1} {p2} (suc n) eq uni = {!   !}
+generalization-sized {s1} {s2} {p1} {p2} (suc n) eq uni with splitter uni 
+generalization-sized {s1} {s2} {p1} {p2} (suc n) eq uni | SplitEC ec = generalization-equiv-constructor ec
+generalization-sized {s1} {s2} {p1} {p2} (suc n) eq uni | SplitXK x k n' ps with generalization-sized {{!   !}} {{!   !}} {(step-sub x) [ p1 ]} {p2} {!   !} {!   !} {!   !}
+generalization-sized {s1} {s2} {p1} {p2} (suc n) eq uni | SplitXK x k n' ps | s1' , s2' , (MGU (Unify u') mgu) = (s1' ∘ (step-sub x)) , s2' , MGU (Unify u') mgu'
+    where 
+    mgu' : (s1'' s2'' : Sub)
+      -> s1'' , s2'' unifies p1 , p2
+      -> (s1'' ⊑ (s1' ∘ step-sub x)) × (s2'' ⊑ s2')
+    mgu' s1'' s2'' (Unify u'') = {!   !} --Prec {!   !} {!   !} , Prec {!   !} {!   !}
 
 --     generalization-equiv-constructor ECX
 -- generalization-sized {s1} {s2} {K k1 n1 ps1} {K k2 n2 ps2} (suc n) eq (Unify u) = {! n2  !}

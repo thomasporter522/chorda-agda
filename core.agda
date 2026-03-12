@@ -7,6 +7,7 @@ open import Data.Empty
 open import Data.Product hiding (map)
 open import Data.Sum hiding (map)
 open import Relation.Binary.PropositionalEquality hiding ([_])
+open import Relation.Nullary.Decidable hiding (map)
 {-# BUILTIN REWRITE _≡_ #-}
 
 postulate 
@@ -17,6 +18,9 @@ postulate
     L-inj : (x y : Var) -> (L x ≡ L y) -> x ≡ y
     R-inj : (x y : Var) -> (R x ≡ R y) -> x ≡ y
     L-R-disjoint : (x y : Var) -> (L x ≡ R y) -> ⊥
+    Var-≟ : (x y : Var) -> Dec (x ≡ y)
+    Fresh : ℕ -> Var 
+    Fresh-inj : (x y : ℕ) -> (Fresh x ≡ Fresh y) -> x ≡ y
 
 data Pattern : Set where 
     X : Var -> Pattern
