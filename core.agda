@@ -10,17 +10,45 @@ open import Relation.Binary.PropositionalEquality hiding ([_])
 open import Relation.Nullary.Decidable hiding (map)
 {-# BUILTIN REWRITE _≡_ #-}
 
+record _≅_ (A B : Set) : Set where
+    field 
+        to : A -> B 
+        from : B -> A
+        fromto : ∀{a} -> from (to a) ≡ a
+        tofrom : ∀{b} -> to (from b) ≡ b
+
 postulate 
     Constructor : Set
     Var : Set 
-    L : Var -> Var 
-    R : Var -> Var 
-    L-inj : (x y : Var) -> (L x ≡ L y) -> x ≡ y
-    R-inj : (x y : Var) -> (R x ≡ R y) -> x ≡ y
-    L-R-disjoint : (x y : Var) -> (L x ≡ R y) -> ⊥
-    Var-≟ : (x y : Var) -> Dec (x ≡ y)
+    Cleft : Var ≅ (Var ⊎ Var)
+    -- L : Var -> Var 
+    -- R : Var -> Var 
+    -- L-inj : (x y : Var) -> (L x ≡ L y) -> x ≡ y
+    -- R-inj : (x y : Var) -> (R x ≡ R y) -> x ≡ y
+    -- L-R-disjoint : (x y : Var) -> (L x ≡ R y) -> ⊥
+    -- L-R-cover : (y : Var) -> ∃[ x ] (L x ≡ y ⊎ R x ≡ y)
+    _≟v_ : (x y : Var) -> Dec (x ≡ y)
     Fresh : ℕ -> Var 
     Fresh-inj : (x y : ℕ) -> (Fresh x ≡ Fresh y) -> x ≡ y
+    funext : {A B : Set} -> {f g : A -> B} -> ((x : A) -> f x ≡ g x) -> f ≡ g
+
+L : Var -> Var 
+L x = _≅_.from Cleft (inj₁ x)
+
+R : Var -> Var 
+R x = _≅_.from Cleft (inj₂ x)
+
+cleave : Var -> Var ⊎ Var
+cleave = _≅_.to Cleft
+
+fromto : {a : Var} → Cleft ._≅_.from (Cleft ._≅_.to a) ≡ a
+fromto = _≅_.fromto Cleft 
+
+tofrom : {b : Var ⊎ Var} → Cleft ._≅_.to (Cleft ._≅_.from b) ≡ b
+tofrom = _≅_.tofrom Cleft 
+
+{-# REWRITE fromto #-}
+{-# REWRITE tofrom #-}
 
 data Pattern : Set where 
     X : Var -> Pattern
@@ -35,6 +63,26 @@ s [ X x ] = s x
 s [ K k n ps ] = K k n (map (λ p -> (s [ p ])) ps)
 
 infixr 30 _[_]
+
+sid : Sub 
+sid x = X x 
+
+mutual 
+    map-sid-eq : ∀{n} 
+        -> (ps : Vec Pattern n)
+        -> map (_[_] sid) ps ≡ ps
+    map-sid-eq [] = refl
+    map-sid-eq (p ∷ ps) 
+        rewrite sid-eq p 
+        rewrite map-sid-eq ps = refl
+    
+    sid-eq : (p : Pattern)
+        -> sid [ p ] ≡ p 
+    sid-eq (X x) = refl
+    sid-eq (K k n ps)
+        rewrite map-sid-eq ps = refl
+
+{-# REWRITE sid-eq #-}
 
 functional : Pattern -> Pattern -> Set
 functional p1 p2 = (s1 s2 : Sub)
@@ -150,14 +198,14 @@ data _=>[_]_ : Pattern -> Ruleset -> Pattern -> Set₁ where
         -> p2 ↦̸[ R ]
         -> p1 =>[ R ] p2
 
-data _≅_ (R1 R2 : Ruleset) : Set₁ where 
+data _≅R_ (R1 R2 : Ruleset) : Set₁ where 
     Equiv : (∀{p1 p2} 
             -> p1 =>[ R1 ] p2
             -> p1 =>[ R2 ] p2)
         -> (∀{p1 p2} 
             -> p1 =>[ R2 ] p2
             -> p1 =>[ R1 ] p2)
-        -> R1 ≅ R2
+        -> R1 ≅R R2
 
 _∪[_] : Ruleset -> Rule -> Ruleset 
 (R ∪[ r ]) r' = R r' ⊎ r' ≡ r

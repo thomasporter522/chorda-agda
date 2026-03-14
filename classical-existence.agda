@@ -23,9 +23,11 @@ postulate
 -- find a place of disagreement between the two 
 -- generalize accordingly, and repeat
 -- ?
+
 generalization : ∀{p1 p2 s1 s2}
     -> s1 , s2 unifies p1 , p2
     -> ∃[ s1' ] ∃[ s2' ] s1' , s2' mgu p1 , p2
+
 generalization {p1} {p2} {s1} {s2} (Unify u) with aem 
     ((s1' s2' : Sub) 
     -> s1' , s2' unifies p1 , p2

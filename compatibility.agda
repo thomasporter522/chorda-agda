@@ -90,26 +90,6 @@ data ⟦⟧graph (p1 p2 p3 p4 : Pattern) : Set where
         subhelper2 : (s ∘ s1) [ p2 ] ≡ p6
         subhelper2 rewrite eq2 rewrite eq6 = refl
 
-sid : Sub 
-sid x = X x 
-
-mutual 
-    map-sid-eq : ∀{n} 
-        -> (ps : Vec Pattern n)
-        -> map (_[_] sid) ps ≡ ps
-    map-sid-eq [] = refl
-    map-sid-eq (p ∷ ps) 
-        rewrite sid-eq p 
-        rewrite map-sid-eq ps = refl
-    
-    sid-eq : (p : Pattern)
-        -> sid [ p ] ≡ p 
-    sid-eq (X x) = refl
-    sid-eq (K k n ps)
-        rewrite map-sid-eq ps = refl
-
-{-# REWRITE sid-eq #-}
-
 ⟦⟧-compatible-inv : 
     {r1 r2 : Rule}
     -> ⟦ r1 ⟧ ≡pf ⟦ r2 ⟧

@@ -40,7 +40,7 @@ validity : ∀{r1 r2 r R}
     -> R r1 
     -> R r2 
     -> r1 ∘r r2 ≡ r 
-    -> R ≅ R ∪[ r ]
+    -> R ≅R R ∪[ r ]
 validity {r1} {r2} {r} {R} in1 in2 comp = Equiv equiv1 equiv2
     where
     equiv1-lemma1 : ∀{p1 p2}
