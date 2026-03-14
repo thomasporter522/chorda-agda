@@ -2,6 +2,7 @@
 
 
 open import Data.Nat
+open import Data.Nat.Properties
 open import Data.Vec hiding ([_])
 open import Data.Empty
 open import Data.Unit
@@ -137,22 +138,11 @@ prefix-to-index : ∀{n1 n1' n p}
 prefix-to-index PrefixSelf i = i
 prefix-to-index (PrefixCons p) i = prefix-to-index p (IndexOfCons i)
 
-≤-reflexive : ∀{x} -> x ≤ x 
-≤-reflexive {zero} = z≤n
-≤-reflexive {suc x} = s≤s ≤-reflexive
-
-≤-transitive : ∀{a b c}
-    -> a ≤ b
-    -> b ≤ c 
-    -> a ≤ c 
-≤-transitive z≤n _ = z≤n
-≤-transitive (s≤s l1) (s≤s l2) = s≤s (≤-transitive l1 l2)
-
 index-lt-length : ∀{n n' p}
     -> {ps : Vec Pattern n'}
     -> indexof ps n p
     -> n < n'
-index-lt-length IndexOfHead = s≤s ≤-reflexive
+index-lt-length IndexOfHead = s≤s (≤-reflexive refl)
 index-lt-length (IndexOfCons i) = helper (index-lt-length i)
     where 
     helper : ∀{n n'} -> n ≤ n' -> n ≤ suc n'
@@ -209,27 +199,45 @@ cons-preunify-tl {s1} {s2} {p1} {p2} {k} {n} {ps1} {ps2} (PU pu) = PU pu'
       -> (s1' ⊑ s1) × (s2' ⊑ s2) 
     pu' s1' s2' (Unify u) = pu s1' s2' (Unify (cong (K k n) (cons-inj-tl (K-inj-ps u))))
 
-split-leq : (p1 p2 : Pattern) -> (s1 s2 : Sub) -> (pu : s1 , s2 preunifies p1 , p2) -> Set 
-split-leq p1 p2 s1 s2 (PU pu) = (s1' s2' : Sub) -> (u : s1' , s2' unifies p1 , p2) -> helper s1' s2' u
-    where 
-    helper : (s1' s2' : Sub) -> (u : s1' , s2' unifies p1 , p2) -> Set 
-    helper s1' s2' u with pu s1' s2' u 
-    ... | Prec sp1 eq1 , Prec sp2 eq2 = metric sp1 sp2 (s1 [ p1 ]) (s2 [ p2 ]) < metric s1' s2' p1 p2
+-- split-leq : (p1 p2 : Pattern) -> (s1 s2 : Sub) -> (pu : s1 , s2 preunifies p1 , p2) -> Set 
+-- split-leq p1 p2 s1 s2 (PU pu) = (s1' s2' : Sub) -> (u : s1' , s2' unifies p1 , p2) -> helper s1' s2' u
+--     where 
+--     helper : (s1' s2' : Sub) -> (u : s1' , s2' unifies p1 , p2) -> Set 
+--     helper s1' s2' u with pu s1' s2' u 
+--     ... | Prec sp1 eq1 , Prec sp2 eq2 = metric sp1 sp2 (s1 [ p1 ]) (s2 [ p2 ]) < metric s1' s2' p1 p2
 
-split-leq-cons-preunify : ∀{s1 s2 p1 p2 k n pu}
-    -> {ps1 ps2 : Vec Pattern n}
-    -> split-leq p1 p2 s1 s2 pu
-    -> split-leq (K k (suc n) (p1 ∷ ps1))
-      (K k (suc n) (p2 ∷ ps2)) s1 s2 (cons-preunify pu)
-split-leq-cons-preunify {s1} {s2} {p1} {p2} {k} {n} {PU pu} {ps1} {ps2} leq s1' s2' (Unify u) with pu s1' s2' ((Unify (cons-inj (K-inj-ps u)))) in eq
-... | Prec sp1 eq1 , Prec sp2 eq2 = {!   !}
+-- split-leq-cons-preunify : ∀{s1 s2 p1 p2 k n pu}
+--     -> {ps1 ps2 : Vec Pattern n}
+--     -> split-leq p1 p2 s1 s2 pu
+--     -> split-leq (K k (suc n) (p1 ∷ ps1))
+--       (K k (suc n) (p2 ∷ ps2)) s1 s2 (cons-preunify pu)
+-- split-leq-cons-preunify {s1} {s2} {p1} {p2} {k} {n} {PU pu} {ps1} {ps2} leq s1' s2' (Unify u) with pu s1' s2' ((Unify (cons-inj (K-inj-ps u)))) in eq
+-- ... | Prec sp1 eq1 , Prec sp2 eq2 = {!   !}
+
+{-# REWRITE +-suc #-}
+
+metric-lemma-1 : ∀{s3 s4 p1 p2 k1 n1}
+    -> {ps1 ps2 : Vec Pattern n1}
+    -> metric s3 s4 p1 p2 > 0
+    -> metric s3 s4 (K k1 (suc n1) (p1 ∷ ps1)) (K k1 (suc n1) (p2 ∷ ps2)) > 0
+metric-lemma-1 {s3} {s4} {p1} {p2} l with size-diff s3 p1 | size-diff s4 p2
+... | zero | suc _ = s≤s z≤n
+... | suc _ | _ = s≤s z≤n
+
+metric-lemma-2 : ∀{s3 s4 p1 p2 k1 n1}
+    -> {ps1 ps2 : Vec Pattern n1}
+    -> metric s3 s4 (K k1 n1 ps1) (K k1 n1 ps2) > 0
+    -> metric s3 s4 (K k1 (suc n1) (p1 ∷ ps1)) (K k1 (suc n1) (p2 ∷ ps2)) > 0
+metric-lemma-2 {s3} {s4} {p1} {p2} {k1} {n1} {ps1} {ps2} l with size-diff s3 (K k1 n1 ps1) | size-diff s4 (K k1 n1 ps2)
+... | zero | suc _ = s≤s z≤n
+... | suc _ | _ = s≤s z≤n
 
 data SplitResult (p1 p2 : Pattern) : Set where
     SplitEC : equiv-constructor p1 p2
         -> SplitResult p1 p2
     SplitPU : (s1 s2 : Sub)
         -> (pu : s1 , s2 preunifies p1 , p2)
-        -> split-leq p1 p2 s1 s2 pu
+        -> metric s1 s2 p1 p2 > 0
         -> SplitResult p1 p2
 
 {-# TERMINATING #-}
@@ -243,17 +251,22 @@ splitter {s1} {s2} {K k1 (suc n1) ps1} {K k2 zero ps2} (Unify ())
 splitter {s1} {s2} {K k1 zero []} {K k2 zero []} (Unify refl) = SplitEC (ECK tt)
 splitter {s1} {s2} {K k1 (suc n1) (p1 ∷ ps1)} {K k2 (suc n2) (p2 ∷ ps2)} (Unify u) with K-inj-kn u
 splitter {s1} {s2} {K k1 (suc n1) (p1 ∷ ps1)} {K .(k1) (suc n2) (p2 ∷ ps2)} (Unify u) | refl , refl with splitter {s1} {s2} {p1} {p2} (Unify (cons-inj (K-inj-ps u))) 
-... | SplitPU s3 s4 pu lt = SplitPU s3 s4 (cons-preunify pu) {!   !}
+... | SplitPU s3 s4 pu lt = SplitPU s3 s4 (cons-preunify pu) (metric-lemma-1 {s3} {s4} {p1} {p2} {k1} {n1} {ps1} {ps2} lt)
 ... | SplitEC ec with splitter {s1} {s2} {K k1 (n1) (ps1)} {K k1 (n2) (ps2)} (Unify (cong (K k1 n1) (cons-inj-tl (K-inj-ps u))))
 ... | SplitEC (ECK ecs) = SplitEC (ECK (ec , ecs))
-... | SplitPU s3 s4 pu lt = SplitPU s3 s4 (cons-preunify-tl pu) {!   !}
+... | SplitPU s3 s4 pu lt = SplitPU s3 s4 (cons-preunify-tl pu) (metric-lemma-2 {s3} {s4} {p1} {p2} {k1} {n1} {ps1} {ps2} lt)
 
-splitter {s1} {s2} {X x} {K k n ps} u = SplitPU s1' sid (PU pu) {!   !}
+splitter {s1} {s2} {X x} {K k n ps} u = SplitPU s1' sid (PU pu) ineq
     where
     s1' : Sub
     s1' x' with x ≟v x' 
     ... | yes refl = K k n (freshesL n)
     ... | no _ = X (R x')
+
+    ineq : metric s1' sid (X x) (K k n ps) > 0
+    ineq with x ≟v x
+    ... | yes refl = s≤s z≤n
+    ... | no neq = ⊥-elim (neq refl)
 
     pu : (s1'' s2'' : Sub)
         -> s1'' , s2'' unifies X x , K k n ps
@@ -323,15 +336,8 @@ generalization-sized {s1} {s2} {p1} {p2} (suc n) eq (Unify u) | SplitPU s1' s2' 
     equation : (sp1 ∘ s1') [ p1 ] ≡ (sp2 ∘ s2') [ p2 ]
     equation rewrite eq1 rewrite eq2 = u
 
-    lemma : {a b c : ℕ}
-        -> a < b
-        -> b ≤ suc c
-        -> a ≤ c
-    lemma (s≤s l1) (s≤s l2) = ≤-transitive l1 l2
-
     inequation : metric sp1 sp2 (s1' [ p1 ]) (s2' [ p2 ]) ≤ n
-    inequation with (lt s1 s2 (Unify u)) 
-    ... | eq' rewrite pu-eq = lemma eq' eq
+    inequation = {!   !}
 generalization-sized {s1} {s2} {p1} {p2} (suc n) eq u | SplitPU s1' s2' (PU pu) lt | Prec sp1 eq1 , Prec sp2 eq2 | s1'' , s2'' , MGU (Unify u') mgu = (s1'' ∘ s1') , (s2'' ∘ s2') , MGU (Unify u') mgu'
     where 
     mgu' : (sl sr : Sub) →
@@ -352,7 +358,7 @@ generalization-sized {s1} {s2} {p1} {p2} (suc n) eq u | SplitPU s1' s2' (PU pu) 
 generalization : ∀{p1 p2 s1 s2}
     -> s1 , s2 unifies p1 , p2
     -> ∃[ s1' ] ∃[ s2' ] s1' , s2' mgu p1 , p2
-generalization = generalization-sized _ ≤-reflexive
+generalization = generalization-sized _ (≤-reflexive refl)
 
 existence : ∀{t1 t2 t3 r1 r2}
     -> (t1 ↦[ r1 ] t2)
