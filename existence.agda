@@ -99,13 +99,6 @@ data _,_preunifies_,_ (s1 s2 : Sub) (p1 p2 : Pattern) : Set where
             -> (s1' ⊑ s1 × s2' ⊑ s2))
         -> s1 , s2 preunifies p1 , p2
 
-data SplitResult (p1 p2 : Pattern) : Set where
-    SplitEC : equiv-constructor p1 p2
-        -> SplitResult p1 p2
-    SplitPU : (s1 s2 : Sub)
-        -> s1 , s2 preunifies p1 , p2
-        -> SplitResult p1 p2
-
 freshesL : (n : ℕ) -> Vec Pattern n 
 freshesL zero = []
 freshesL (suc n) = X (L (Fresh n)) ∷ freshesL n
@@ -147,6 +140,13 @@ prefix-to-index (PrefixCons p) i = prefix-to-index p (IndexOfCons i)
 ≤-reflexive : ∀{x} -> x ≤ x 
 ≤-reflexive {zero} = z≤n
 ≤-reflexive {suc x} = s≤s ≤-reflexive
+
+≤-transitive : ∀{a b c}
+    -> a ≤ b
+    -> b ≤ c 
+    -> a ≤ c 
+≤-transitive z≤n _ = z≤n
+≤-transitive (s≤s l1) (s≤s l2) = s≤s (≤-transitive l1 l2)
 
 index-lt-length : ∀{n n' p}
     -> {ps : Vec Pattern n'}
@@ -209,81 +209,102 @@ cons-preunify-tl {s1} {s2} {p1} {p2} {k} {n} {ps1} {ps2} (PU pu) = PU pu'
       -> (s1' ⊑ s1) × (s2' ⊑ s2) 
     pu' s1' s2' (Unify u) = pu s1' s2' (Unify (cong (K k n) (cons-inj-tl (K-inj-ps u))))
 
-mutual 
+split-leq : (p1 p2 : Pattern) -> (s1 s2 : Sub) -> (pu : s1 , s2 preunifies p1 , p2) -> Set 
+split-leq p1 p2 s1 s2 (PU pu) = (s1' s2' : Sub) -> (u : s1' , s2' unifies p1 , p2) -> helper s1' s2' u
+    where 
+    helper : (s1' s2' : Sub) -> (u : s1' , s2' unifies p1 , p2) -> Set 
+    helper s1' s2' u with pu s1' s2' u 
+    ... | Prec sp1 eq1 , Prec sp2 eq2 = metric sp1 sp2 (s1 [ p1 ]) (s2 [ p2 ]) < metric s1' s2' p1 p2
 
-    {-# TERMINATING #-}
-    splitter : ∀{s1 s2 p1 p2}
-            -> s1 , s2 unifies p1 , p2
-            -> SplitResult p1 p2 
-    splitter {s1} {s2} {X _} {X _} u = SplitEC ECX
+split-leq-cons-preunify : ∀{s1 s2 p1 p2 k n pu}
+    -> {ps1 ps2 : Vec Pattern n}
+    -> split-leq p1 p2 s1 s2 pu
+    -> split-leq (K k (suc n) (p1 ∷ ps1))
+      (K k (suc n) (p2 ∷ ps2)) s1 s2 (cons-preunify pu)
+split-leq-cons-preunify {s1} {s2} {p1} {p2} {k} {n} {PU pu} {ps1} {ps2} leq s1' s2' (Unify u) with pu s1' s2' ((Unify (cons-inj (K-inj-ps u)))) in eq
+... | Prec sp1 eq1 , Prec sp2 eq2 = {!   !}
 
-    splitter {s1} {s2} {K k1 zero ps1} {K k2 (suc n2) ps2} (Unify ())
-    splitter {s1} {s2} {K k1 (suc n1) ps1} {K k2 zero ps2} (Unify ())
-    splitter {s1} {s2} {K k1 zero []} {K k2 zero []} (Unify refl) = SplitEC (ECK tt)
-    splitter {s1} {s2} {K k1 (suc n1) (p1 ∷ ps1)} {K k2 (suc n2) (p2 ∷ ps2)} (Unify u) with K-inj-kn u
-    splitter {s1} {s2} {K k1 (suc n1) (p1 ∷ ps1)} {K .(k1) (suc n2) (p2 ∷ ps2)} (Unify u) | refl , refl with splitter {s1} {s2} {p1} {p2} (Unify (cons-inj (K-inj-ps u))) 
-    ... | SplitPU s3 s4 pu = SplitPU s3 s4 (cons-preunify pu)
-    ... | SplitEC ec with splitter {s1} {s2} {K k1 (n1) (ps1)} {K k1 (n2) (ps2)} (Unify (cong (K k1 n1) (cons-inj-tl (K-inj-ps u))))
-    ... | SplitEC (ECK ecs) = SplitEC (ECK (ec , ecs))
-    ... | SplitPU s3 s4 pu = SplitPU s3 s4 (cons-preunify-tl pu)
+data SplitResult (p1 p2 : Pattern) : Set where
+    SplitEC : equiv-constructor p1 p2
+        -> SplitResult p1 p2
+    SplitPU : (s1 s2 : Sub)
+        -> (pu : s1 , s2 preunifies p1 , p2)
+        -> split-leq p1 p2 s1 s2 pu
+        -> SplitResult p1 p2
 
-    splitter {s1} {s2} {X x} {K k n ps} u = SplitPU s1' sid (PU pu)
-        where
-        s1' : Sub
-        s1' x' with x ≟v x' 
-        ... | yes refl = K k n (freshesL n)
-        ... | no _ = X (R x')
+{-# TERMINATING #-}
+splitter : ∀{s1 s2 p1 p2}
+        -> s1 , s2 unifies p1 , p2
+        -> SplitResult p1 p2 
+splitter {s1} {s2} {X _} {X _} u = SplitEC ECX
 
-        pu : (s1'' s2'' : Sub)
-            -> s1'' , s2'' unifies X x , K k n ps
-            -> (s1'' ⊑ s1') × (s2'' ⊑ sid)
-        pu s1'' s2'' (Unify eq) = (Prec (sp ps) (funext equiv)) , (Prec s2'' refl)
-            where 
-            sp : ∀{n} -> (ps : Vec Pattern n) -> Sub 
-            sp ps' y with cleave y 
-            ... | inj₁ x' = childfold s2'' ps' x'
-            ... | inj₂ x' = s1'' x'
+splitter {s1} {s2} {K k1 zero ps1} {K k2 (suc n2) ps2} (Unify ())
+splitter {s1} {s2} {K k1 (suc n1) ps1} {K k2 zero ps2} (Unify ())
+splitter {s1} {s2} {K k1 zero []} {K k2 zero []} (Unify refl) = SplitEC (ECK tt)
+splitter {s1} {s2} {K k1 (suc n1) (p1 ∷ ps1)} {K k2 (suc n2) (p2 ∷ ps2)} (Unify u) with K-inj-kn u
+splitter {s1} {s2} {K k1 (suc n1) (p1 ∷ ps1)} {K .(k1) (suc n2) (p2 ∷ ps2)} (Unify u) | refl , refl with splitter {s1} {s2} {p1} {p2} (Unify (cons-inj (K-inj-ps u))) 
+... | SplitPU s3 s4 pu lt = SplitPU s3 s4 (cons-preunify pu) {!   !}
+... | SplitEC ec with splitter {s1} {s2} {K k1 (n1) (ps1)} {K k1 (n2) (ps2)} (Unify (cong (K k1 n1) (cons-inj-tl (K-inj-ps u))))
+... | SplitEC (ECK ecs) = SplitEC (ECK (ec , ecs))
+... | SplitPU s3 s4 pu lt = SplitPU s3 s4 (cons-preunify-tl pu) {!   !}
 
-            equiv : (x' : Var) → s1'' x' ≡ ((sp ps) ∘ s1') x'
-            equiv x' with x ≟v x' 
-            equiv x' | no _ with cleave (R x') in eq'
-            equiv x' | no _ | inj₁ _ = refl
-            equiv x' | no _ | inj₂ _ with eq' 
-            equiv x' | no _ | inj₂ _ | refl = refl
-            equiv x' | yes refl = trans eq (cong (K k n) (equiv-children ps PrefixSelf))
-                where
-                equiv-child2 : ∀{n' n'' p' }
-                    -> {ps' : Vec Pattern n''}
-                    -> indexof ps' n' p'
-                    -> s2'' [ p' ] ≡ childfold s2'' ps' (Fresh n')
-                equiv-child2 {n'} {n'' = n''} IndexOfHead with Fresh n' ≟v Fresh n'
-                equiv-child2 {n'} IndexOfHead | yes refl  = refl
-                equiv-child2 {n'} IndexOfHead | no neq = ⊥-elim (neq refl)
-                equiv-child2 {n'} {n'' = n''} (IndexOfCons i) with Fresh n' ≟v Fresh n''
-                equiv-child2 {n'} (IndexOfCons i) | yes eq' with Fresh-inj eq'
-                equiv-child2 {n'} {n'' = suc n''} (IndexOfCons i) | yes _ | refl with Fresh (suc n'') ≟v Fresh n''
-                equiv-child2 {n'} (IndexOfCons i) | yes _ | refl | yes eq' with Fresh-inj eq'
-                equiv-child2 {n'} (IndexOfCons i) | yes _ | refl | yes _ | ()
-                equiv-child2 {n'} (IndexOfCons i) | yes _ | refl | no _ = equiv-child2 i
-                equiv-child2 {n'} {n'' = suc n''} (IndexOfCons i) | no neq with Fresh n' ≟v Fresh n''
-                equiv-child2 {n'} (IndexOfCons i) | no neq | yes eq' rewrite eq' = ⊥-elim (lt-not-eq (index-lt-length i) (Fresh-inj eq'))
-                equiv-child2 {n'} (IndexOfCons i) | no neq | no neq' = equiv-child2 i
+splitter {s1} {s2} {X x} {K k n ps} u = SplitPU s1' sid (PU pu) {!   !}
+    where
+    s1' : Sub
+    s1' x' with x ≟v x' 
+    ... | yes refl = K k n (freshesL n)
+    ... | no _ = X (R x')
 
-                equiv-child1 : ∀{n' n'' p'}
-                    -> {ps' : Vec Pattern n''}
-                    -> indexof ps' n' p'
-                    -> s2'' [ p' ] ≡ sp ps' (L (Fresh n'))
-                equiv-child1 {n'} i with cleave (L (Fresh n')) in eq''
-                equiv-child1 {n'} i | inj₁ x = equiv-child2 i 
-                equiv-child1 {n'} i | inj₂ _ with eq'' 
-                equiv-child1 {n'} i | inj₂ _ | () 
+    pu : (s1'' s2'' : Sub)
+        -> s1'' , s2'' unifies X x , K k n ps
+        -> (s1'' ⊑ s1') × (s2'' ⊑ sid)
+    pu s1'' s2'' (Unify eq) = (Prec (sp ps) (funext equiv)) , (Prec s2'' refl)
+        where 
+        sp : ∀{n} -> (ps : Vec Pattern n) -> Sub 
+        sp ps' y with cleave y 
+        ... | inj₁ x' = childfold s2'' ps' x'
+        ... | inj₂ x' = s1'' x'
 
-                equiv-children : {n' : ℕ} -> (ps' : Vec Pattern n') -> prefix ps ps' -> map (_[_] s2'') ps' ≡ map (_[_] (sp ps)) (freshesL n')
-                equiv-children [] pref = refl
-                equiv-children  {suc n'} (p' ∷ ps') pref = cong₂ _∷_ (equiv-child1 (prefix-to-index pref IndexOfHead)) (equiv-children ps' (PrefixCons pref))
-            
+        equiv : (x' : Var) → s1'' x' ≡ ((sp ps) ∘ s1') x'
+        equiv x' with x ≟v x' 
+        equiv x' | no _ with cleave (R x') in eq'
+        equiv x' | no _ | inj₁ _ = refl
+        equiv x' | no _ | inj₂ _ with eq' 
+        equiv x' | no _ | inj₂ _ | refl = refl
+        equiv x' | yes refl = trans eq (cong (K k n) (equiv-children ps PrefixSelf))
+            where
+            equiv-child2 : ∀{n' n'' p' }
+                -> {ps' : Vec Pattern n''}
+                -> indexof ps' n' p'
+                -> s2'' [ p' ] ≡ childfold s2'' ps' (Fresh n')
+            equiv-child2 {n'} {n'' = n''} IndexOfHead with Fresh n' ≟v Fresh n'
+            equiv-child2 {n'} IndexOfHead | yes refl  = refl
+            equiv-child2 {n'} IndexOfHead | no neq = ⊥-elim (neq refl)
+            equiv-child2 {n'} {n'' = n''} (IndexOfCons i) with Fresh n' ≟v Fresh n''
+            equiv-child2 {n'} (IndexOfCons i) | yes eq' with Fresh-inj eq'
+            equiv-child2 {n'} {n'' = suc n''} (IndexOfCons i) | yes _ | refl with Fresh (suc n'') ≟v Fresh n''
+            equiv-child2 {n'} (IndexOfCons i) | yes _ | refl | yes eq' with Fresh-inj eq'
+            equiv-child2 {n'} (IndexOfCons i) | yes _ | refl | yes _ | ()
+            equiv-child2 {n'} (IndexOfCons i) | yes _ | refl | no _ = equiv-child2 i
+            equiv-child2 {n'} {n'' = suc n''} (IndexOfCons i) | no neq with Fresh n' ≟v Fresh n''
+            equiv-child2 {n'} (IndexOfCons i) | no neq | yes eq' rewrite eq' = ⊥-elim (lt-not-eq (index-lt-length i) (Fresh-inj eq'))
+            equiv-child2 {n'} (IndexOfCons i) | no neq | no neq' = equiv-child2 i
 
-    splitter {s1} {s2} {K x n x₁} {X x₂} u = {!   !} -- symmetrical
+            equiv-child1 : ∀{n' n'' p'}
+                -> {ps' : Vec Pattern n''}
+                -> indexof ps' n' p'
+                -> s2'' [ p' ] ≡ sp ps' (L (Fresh n'))
+            equiv-child1 {n'} i with cleave (L (Fresh n')) in eq''
+            equiv-child1 {n'} i | inj₁ x = equiv-child2 i 
+            equiv-child1 {n'} i | inj₂ _ with eq'' 
+            equiv-child1 {n'} i | inj₂ _ | () 
+
+            equiv-children : {n' : ℕ} -> (ps' : Vec Pattern n') -> prefix ps ps' -> map (_[_] s2'') ps' ≡ map (_[_] (sp ps)) (freshesL n')
+            equiv-children [] pref = refl
+            equiv-children  {suc n'} (p' ∷ ps') pref = cong₂ _∷_ (equiv-child1 (prefix-to-index pref IndexOfHead)) (equiv-children ps' (PrefixCons pref))
+        
+
+splitter {s1} {s2} {K x n x₁} {X x₂} u = {!   !} -- symmetrical
     
 
 generalization-sized : ∀{s1 s2 p1 p2}
@@ -296,12 +317,22 @@ generalization-sized {s1} {s2} {p1} {p2} zero eq u | zero | zero with size-diff-
 generalization-sized zero eq (Unify u) | zero | zero | ec1 | ec2 rewrite u = generalization-equiv-constructor (equiv-constructor-trans ec1 (equiv-constructor-sym ec2))
 generalization-sized {s1} {s2} {p1} {p2} (suc n) eq u with splitter u 
 generalization-sized {s1} {s2} {p1} {p2} (suc n) eq u | SplitEC ec = generalization-equiv-constructor ec
-generalization-sized {s1} {s2} {p1} {p2} (suc n) eq u | SplitPU s1' s2' (PU pu) with pu s1 s2 u
-generalization-sized {s1} {s2} {p1} {p2} (suc n) eq (Unify u) | SplitPU s1' s2' (PU pu) | Prec sp1 eq1 , Prec sp2 eq2 with generalization-sized {sp1} {sp2} {s1' [ p1 ]} {s2' [ p2 ]} n {!   !} (Unify equation)
+generalization-sized {s1} {s2} {p1} {p2} (suc n) eq (Unify u) | SplitPU s1' s2' (PU pu) lt with pu s1 s2 (Unify u) in pu-eq
+generalization-sized {s1} {s2} {p1} {p2} (suc n) eq (Unify u) | SplitPU s1' s2' (PU pu) lt | Prec sp1 eq1 , Prec sp2 eq2 with generalization-sized {sp1} {sp2} {s1' [ p1 ]} {s2' [ p2 ]} n inequation (Unify equation)
     where 
     equation : (sp1 ∘ s1') [ p1 ] ≡ (sp2 ∘ s2') [ p2 ]
     equation rewrite eq1 rewrite eq2 = u
-generalization-sized {s1} {s2} {p1} {p2} (suc n) eq u | SplitPU s1' s2' (PU pu) | Prec sp1 eq1 , Prec sp2 eq2 | s1'' , s2'' , MGU (Unify u') mgu = (s1'' ∘ s1') , (s2'' ∘ s2') , MGU (Unify u') mgu'
+
+    lemma : {a b c : ℕ}
+        -> a < b
+        -> b ≤ suc c
+        -> a ≤ c
+    lemma (s≤s l1) (s≤s l2) = ≤-transitive l1 l2
+
+    inequation : metric sp1 sp2 (s1' [ p1 ]) (s2' [ p2 ]) ≤ n
+    inequation with (lt s1 s2 (Unify u)) 
+    ... | eq' rewrite pu-eq = lemma eq' eq
+generalization-sized {s1} {s2} {p1} {p2} (suc n) eq u | SplitPU s1' s2' (PU pu) lt | Prec sp1 eq1 , Prec sp2 eq2 | s1'' , s2'' , MGU (Unify u') mgu = (s1'' ∘ s1') , (s2'' ∘ s2') , MGU (Unify u') mgu'
     where 
     mgu' : (sl sr : Sub) →
       sl , sr unifies p1 , p2 →
