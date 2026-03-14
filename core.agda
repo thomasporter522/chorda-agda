@@ -29,7 +29,7 @@ postulate
     -- L-R-cover : (y : Var) -> ∃[ x ] (L x ≡ y ⊎ R x ≡ y)
     _≟v_ : (x y : Var) -> Dec (x ≡ y)
     Fresh : ℕ -> Var 
-    Fresh-inj : (x y : ℕ) -> (Fresh x ≡ Fresh y) -> x ≡ y
+    Fresh-inj : {x y : ℕ} -> (Fresh x ≡ Fresh y) -> x ≡ y
     funext : {A B : Set} -> {f g : A -> B} -> ((x : A) -> f x ≡ g x) -> f ≡ g
 
 L : Var -> Var 

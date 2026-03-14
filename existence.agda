@@ -190,43 +190,44 @@ mutual
             ... | inj₁ x' = childfold s2'' ps' x'
             ... | inj₂ x' = s1'' x'
 
-            dumm : ∀{p' n' n''}
-                -> {ps' : Vec Pattern n''}
-                -> indexof ps' n' p'
-                -> s2'' [ p' ] ≡ childfold s2'' ps' (Fresh n')
-            dumm {n' = n'} {n'' = n''} IndexOfHead with Fresh n' ≟v Fresh n'
-            dumm {n' = n'} IndexOfHead | yes refl  = refl
-            dumm {n' = n'} IndexOfHead | no neq = ⊥-elim (neq refl)
-            dumm {n' = n'} {n'' = n''} (IndexOfCons i) with Fresh n' ≟v Fresh n''
-            dumm {n' = n'} (IndexOfCons i) | yes eq''' with Fresh-inj _ _ eq''' 
-            dumm {n' = n'} {n'' = suc n''} (IndexOfCons i) | yes eq''' | refl with Fresh (suc n'') ≟v Fresh n'' in eq''''''''''
-            dumm {n' = n'} (IndexOfCons i) | yes eq''' | refl | yes eq'''''' with Fresh-inj _ _ eq''''''
-            dumm {n' = n'} (IndexOfCons i) | yes eq''' | refl | yes eq'''''' | ()
-            dumm {n' = n'} (IndexOfCons i) | yes eq''' | refl | no neq'''' = dumm i
-            dumm {n' = n'} {n'' = suc n''} (IndexOfCons i) | no neq with Fresh n' ≟v Fresh n''
-            dumm {n' = n'} {n'' = suc n''} (IndexOfCons i) | no neq | yes eq'''' rewrite eq'''' = ⊥-elim (lt-not-eq (index-lt-length i) (Fresh-inj _ _ eq''''))
-            dumm {n' = n'} {n'' = suc n''} (IndexOfCons i) | no neq | no neq' = dumm i
-
-            durr : ∀{p' n' n''}
-                -> {ps' : Vec Pattern n''}
-                -> indexof ps' n' p'
-                -> s2'' [ p' ] ≡ sp ps' (L (Fresh n'))
-            durr {n' = n'} i with cleave (L (Fresh n')) in eq''
-            durr {n' = n'} i | inj₁ x = dumm i 
-            durr {n' = n'} i | inj₂ _ with eq'' 
-            durr {n' = n'} i | inj₂ _ | () 
-
-            thing2 : {n' : ℕ} -> (ps' : Vec Pattern n') -> prefix ps ps' -> map (_[_] s2'') ps' ≡ map (_[_] (sp ps)) (freshesL n')
-            thing2 [] pref = refl
-            thing2 {suc n'} (p' ∷ ps') pref = cong₂ _∷_ (durr (prefix-to-index pref IndexOfHead)) (thing2 ps' (PrefixCons pref))
-            
             equiv : (x' : Var) → s1'' x' ≡ ((sp ps) ∘ s1') x'
             equiv x' with x ≟v x' 
-            ... | yes refl = trans eq (cong (K k n) (thing2 ps PrefixSelf))
-            ... | no _ with cleave (R x') in eq'
-            ... | inj₁ _ = refl
-            ... | inj₂ _ with eq' 
-            ... | refl = refl
+            equiv x' | no _ with cleave (R x') in eq'
+            equiv x' | no _ | inj₁ _ = refl
+            equiv x' | no _ | inj₂ _ with eq' 
+            equiv x' | no _ | inj₂ _ | refl = refl
+            equiv x' | yes refl = trans eq (cong (K k n) (equiv-children ps PrefixSelf))
+                where
+                equiv-child2 : ∀{n' n'' p' }
+                    -> {ps' : Vec Pattern n''}
+                    -> indexof ps' n' p'
+                    -> s2'' [ p' ] ≡ childfold s2'' ps' (Fresh n')
+                equiv-child2 {n'} {n'' = n''} IndexOfHead with Fresh n' ≟v Fresh n'
+                equiv-child2 {n'} IndexOfHead | yes refl  = refl
+                equiv-child2 {n'} IndexOfHead | no neq = ⊥-elim (neq refl)
+                equiv-child2 {n'} {n'' = n''} (IndexOfCons i) with Fresh n' ≟v Fresh n''
+                equiv-child2 {n'} (IndexOfCons i) | yes eq' with Fresh-inj eq'
+                equiv-child2 {n'} {n'' = suc n''} (IndexOfCons i) | yes _ | refl with Fresh (suc n'') ≟v Fresh n''
+                equiv-child2 {n'} (IndexOfCons i) | yes _ | refl | yes eq' with Fresh-inj eq'
+                equiv-child2 {n'} (IndexOfCons i) | yes _ | refl | yes _ | ()
+                equiv-child2 {n'} (IndexOfCons i) | yes _ | refl | no _ = equiv-child2 i
+                equiv-child2 {n'} {n'' = suc n''} (IndexOfCons i) | no neq with Fresh n' ≟v Fresh n''
+                equiv-child2 {n'} (IndexOfCons i) | no neq | yes eq' rewrite eq' = ⊥-elim (lt-not-eq (index-lt-length i) (Fresh-inj eq'))
+                equiv-child2 {n'} (IndexOfCons i) | no neq | no neq' = equiv-child2 i
+
+                equiv-child1 : ∀{n' n'' p'}
+                    -> {ps' : Vec Pattern n''}
+                    -> indexof ps' n' p'
+                    -> s2'' [ p' ] ≡ sp ps' (L (Fresh n'))
+                equiv-child1 {n'} i with cleave (L (Fresh n')) in eq''
+                equiv-child1 {n'} i | inj₁ x = equiv-child2 i 
+                equiv-child1 {n'} i | inj₂ _ with eq'' 
+                equiv-child1 {n'} i | inj₂ _ | () 
+
+                equiv-children : {n' : ℕ} -> (ps' : Vec Pattern n') -> prefix ps ps' -> map (_[_] s2'') ps' ≡ map (_[_] (sp ps)) (freshesL n')
+                equiv-children [] pref = refl
+                equiv-children  {suc n'} (p' ∷ ps') pref = cong₂ _∷_ (equiv-child1 (prefix-to-index pref IndexOfHead)) (equiv-children ps' (PrefixCons pref))
+            
 
     splitter {s1} {s2} {K x n x₁} {X x₂} u = {!   !} -- symmetrical
     
