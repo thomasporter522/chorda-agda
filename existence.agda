@@ -11,6 +11,7 @@ open import Data.Product hiding (map)
 open import Data.Sum hiding (map)
 open import Relation.Binary.PropositionalEquality hiding ([_])
 open import Relation.Nullary.Decidable hiding (map)
+open import Data.List using (List; []; _∷_)
 
 open import core
 
@@ -89,138 +90,330 @@ mutual
     size-diff-zero s (X x) eq | X _ = ECX
     size-diff-zero s (K k n ps) eq = ECK (size-diff-zero-map s ps eq)
 
-mutual 
-    locations : ∀{n} 
-        -> {ps1 ps2 : Vec Pattern n}
+-- begin machine generated code 
+
+VarSub : Set
+VarSub = Var -> Var
+
+toSub : VarSub -> Sub
+toSub f x = X (f x)
+
+_∘v_ : VarSub -> VarSub -> VarSub
+(f ∘v g) x = f (g x)
+
+rename2 : Var -> Var -> Var -> VarSub
+rename2 a b c v with a ≟v v
+... | yes _ = c
+... | no _ with b ≟v v
+... | yes _ = c
+... | no _ = v
+
+rename2-a : (a b c : Var) -> rename2 a b c a ≡ c
+rename2-a a b c with a ≟v a
+... | yes _ = refl
+... | no neq = ⊥-elim (neq refl)
+
+rename2-b : (a b c : Var) -> rename2 a b c b ≡ c
+rename2-b a b c with a ≟v b
+... | yes _ = refl
+... | no _ with b ≟v b
+... | yes _ = refl
+... | no neq = ⊥-elim (neq refl)
+
+X-inj : ∀{a b} -> _≡_ {_} {Pattern} (X a) (X b) -> a ≡ b
+X-inj refl = refl
+
+-- L-injectivity from Cleft isomorphism
+L-inj : {x y : Var} -> L x ≡ L y -> x ≡ y
+L-inj eq with cong (_≅_.to Cleft) eq
+... | ceq = inj₁-inj ceq
+    where
+    inj₁-inj : ∀{A B : Set}{a b : A} -> _≡_ {_} {A ⊎ B} (inj₁ a) (inj₁ b) -> a ≡ b
+    inj₁-inj refl = refl
+
+-- R-injectivity from Cleft isomorphism
+R-inj : {x y : Var} -> R x ≡ R y -> x ≡ y
+R-inj eq with cong (_≅_.to Cleft) eq
+... | ceq = inj₂-inj ceq
+    where
+    inj₂-inj : ∀{A B : Set}{a b : B} -> _≡_ {_} {A ⊎ B} (inj₂ a) (inj₂ b) -> a ≡ b
+    inj₂-inj refl = refl
+
+-- L and R are disjoint (from inj₁ ≢ inj₂)
+L-R-disjoint : {x y : Var} -> L x ≢ R y
+L-R-disjoint eq with cong (_≅_.to Cleft) eq
+... | ceq = inj₁≢inj₂ ceq
+    where
+    inj₁≢inj₂ : ∀{A B : Set}{a : A}{b : B} -> _≡_ {_} {A ⊎ B} (inj₁ a) (inj₂ b) -> ⊥
+    inj₁≢inj₂ ()
+
+-- Informative case analysis on rename2
+rename2-cases : (a b c v : Var)
+    -> ((a ≡ v) × (rename2 a b c v ≡ c))
+     ⊎ ((a ≢ v) × (b ≡ v) × (rename2 a b c v ≡ c))
+     ⊎ ((a ≢ v) × (b ≢ v) × (rename2 a b c v ≡ v))
+rename2-cases a b c v with a ≟v v
+... | yes eq = inj₁ (eq , refl)
+... | no neqa with b ≟v v
+... | yes eq = inj₂ (inj₁ (neqa , eq , refl))
+... | no neqb = inj₂ (inj₂ (neqa , neqb , refl))
+
+K-inj-ps : ∀{k1 k2 n} {ps1 ps2 : Vec Pattern n}
+    -> _≡_ {_} {Pattern} (K k1 n ps1) (K k2 n ps2) -> ps1 ≡ ps2
+K-inj-ps refl = refl
+
+cons-inj-hd : ∀{n}{a b : Pattern}{as bs : Vec Pattern n} -> a ∷ as ≡ b ∷ bs -> a ≡ b
+cons-inj-hd refl = refl
+
+cons-inj-tl : ∀{n}{a b : Pattern}{as bs : Vec Pattern n} -> a ∷ as ≡ b ∷ bs -> as ≡ bs
+cons-inj-tl refl = refl
+
+mutual
+    lift-ec-vec : ∀{n} {ps1 ps2 : Vec Pattern n}
+        -> (h : VarSub) (f g : VarSub)
         -> (ecs : equiv-constructors ps1 ps2)
-        -> Set
-    locations {n} {[]} ecs = ⊥
-    locations {n} {p1 ∷ ps1} {p2 ∷ ps2} (ec , ecs) = location ec ⊎ locations ecs
+        -> map (_[_] (toSub f)) ps1 ≡ map (_[_] (toSub g)) ps2
+        -> map (_[_] (toSub (h ∘v f))) ps1 ≡ map (_[_] (toSub (h ∘v g))) ps2
+    lift-ec-vec {ps1 = []} {[]} h f g _ _ = refl
+    lift-ec-vec {ps1 = _ ∷ _} {_ ∷ _} h f g (ec , ecs) eq =
+        cong₂ _∷_ (lift-ec h f g ec (cons-inj-hd eq)) (lift-ec-vec h f g ecs (cons-inj-tl eq))
 
-    location : {p1 p2 : Pattern} -> (ec : equiv-constructor p1 p2) -> Set
-    location ECX = ⊤
-    location (ECK ecs) = locations ecs
+    lift-ec : ∀{p1 p2}
+        -> (h : VarSub) (f g : VarSub)
+        -> (ec : equiv-constructor p1 p2)
+        -> toSub f [ p1 ] ≡ toSub g [ p2 ]
+        -> toSub (h ∘v f) [ p1 ] ≡ toSub (h ∘v g) [ p2 ]
+    lift-ec h f g ECX eq = cong (λ v → X (h v)) (X-inj eq)
+    lift-ec h f g (ECK {k} {n} ecs) eq =
+        cong (K k n) (lift-ec-vec h f g ecs (K-inj-ps eq))
 
-mutual 
-    gets-xs : ∀{n} 
-        -> {ps1 ps2 : Vec Pattern n}
+-- Lookup and sp
+LookupEntry : Set
+LookupEntry = Var × Var
+
+lookup-search : List LookupEntry -> Var -> Var
+lookup-search [] w = w
+lookup-search ((fv , xv) ∷ rest) w with fv ≟v w
+... | yes _ = xv
+... | no _ = lookup-search rest w
+
+sp-of : List LookupEntry -> Sub -> Sub -> Sub
+sp-of entries s1' s2' v with cleave v
+... | inj₂ w = s1' (lookup-search entries w)
+... | inj₁ w with cleave w
+...   | inj₁ u = s1' u
+...   | inj₂ u = s2' u
+
+lookup-hit : (fv xv : Var) (rest : List LookupEntry)
+    -> lookup-search ((fv , xv) ∷ rest) fv ≡ xv
+lookup-hit fv xv rest with fv ≟v fv
+... | yes _ = refl
+... | no neq = ⊥-elim (neq refl)
+
+lookup-miss : (fv xv w : Var) (rest : List LookupEntry)
+    -> fv ≢ w -> lookup-search ((fv , xv) ∷ rest) w ≡ lookup-search rest w
+lookup-miss fv xv w rest neq with fv ≟v w
+... | yes eq = ⊥-elim (neq eq)
+... | no _ = refl
+
+-- Freshness: R(Fresh j) not in range of f or g for j ≥ k
+FreshFrom : VarSub -> VarSub -> ℕ -> Set
+FreshFrom f g k = (j : ℕ) -> k ≤ j -> (v : Var) -> f v ≢ R (Fresh j) × g v ≢ R (Fresh j)
+
+rename2-fresh-lem : (a b : Var) (f g : VarSub) (k : ℕ)
+    -> FreshFrom f g k
+    -> FreshFrom (rename2 a b (R (Fresh k)) ∘v f) (rename2 a b (R (Fresh k)) ∘v g) (suc k)
+rename2-fresh-lem a b f g k fr j le v = left-part , right-part
+    where
+    k≠j : k ≢ j
+    k≠j eq = 1+n≰n (subst (suc k ≤_) (sym eq) le)
+    RFk≠RFj : R (Fresh k) ≢ R (Fresh j)
+    RFk≠RFj eq = k≠j (Fresh-inj (R-inj eq))
+    k≤j : k ≤ j
+    k≤j = ≤-trans (n≤1+n k) le
+    left-part : rename2 a b (R (Fresh k)) (f v) ≢ R (Fresh j)
+    left-part eq with rename2-cases a b (R (Fresh k)) (f v)
+    ... | inj₁ (_ , is-c) = RFk≠RFj (trans (sym is-c) eq)
+    ... | inj₂ (inj₁ (_ , _ , is-c)) = RFk≠RFj (trans (sym is-c) eq)
+    ... | inj₂ (inj₂ (_ , _ , is-v)) = proj₁ (fr j k≤j v) (trans (sym is-v) eq)
+    right-part : rename2 a b (R (Fresh k)) (g v) ≢ R (Fresh j)
+    right-part eq with rename2-cases a b (R (Fresh k)) (g v)
+    ... | inj₁ (_ , is-c) = RFk≠RFj (trans (sym is-c) eq)
+    ... | inj₂ (inj₁ (_ , _ , is-c)) = RFk≠RFj (trans (sym is-c) eq)
+    ... | inj₂ (inj₂ (_ , _ , is-v)) = proj₂ (fr j k≤j v) (trans (sym is-v) eq)
+
+initial-fresh : FreshFrom (L ∘v L) (L ∘v R) 0
+initial-fresh j _ v = (λ eq → L-R-disjoint eq) , (λ eq → L-R-disjoint eq)
+
+-- With the new sp-of, L-namespace values don't use entries at all,
+-- so extending entries is a no-op for them. Only R-namespace values use entries.
+
+sp-of-extend-miss : (fk : ℕ) (x1 : Var) (ent : List LookupEntry) (s1' s2' : Sub) (v : Var)
+    -> v ≢ R (Fresh fk)
+    -> sp-of ((Fresh fk , x1) ∷ ent) s1' s2' v ≡ sp-of ent s1' s2' v
+sp-of-extend-miss fk x1 ent s1' s2' v neq with cleave v in cv
+... | inj₁ w = refl
+... | inj₂ w = cong s1' (lookup-miss (Fresh fk) x1 w ent w≠Fk)
+    where
+    v≡Rw : v ≡ R w
+    v≡Rw = trans (sym fromto) (cong (_≅_.from Cleft) cv)
+    w≠Fk : Fresh fk ≢ w
+    w≠Fk eq = neq (trans v≡Rw (cong R (sym eq)))
+
+-- sp-of on a hit: R(Fresh fk) maps to s1' x1
+sp-of-extend-hit : (fk : ℕ) (x1 : Var) (ent : List LookupEntry) (s1' s2' : Sub)
+    -> sp-of ((Fresh fk , x1) ∷ ent) s1' s2' (R (Fresh fk)) ≡ s1' x1
+sp-of-extend-hit fk x1 ent s1' s2' = cong s1' (lookup-hit (Fresh fk) x1 ent)
+
+-- Result records
+record Solved {p1 p2 : Pattern} (ec : equiv-constructor p1 p2)
+    (f g : VarSub) (ent : List LookupEntry) (k : ℕ) : Set where
+    constructor MkSolved
+    field
+        f' g' : VarSub
+        ent' : List LookupEntry
+        k' : ℕ
+        h : VarSub
+        f'-def : ∀ v -> f' v ≡ h (f v)
+        g'-def : ∀ v -> g' v ≡ h (g v)
+        unifies : toSub f' [ p1 ] ≡ toSub g' [ p2 ]
+        fresh-inv : FreshFrom f' g' k'
+        mgu-inv : (s1' s2' : Sub) -> (_,_unifies_,_ s1' s2' p1 p2)
+            -> ((v : Var) -> sp-of ent s1' s2' (f v) ≡ s1' v)
+            -> ((v : Var) -> sp-of ent s1' s2' (g v) ≡ s2' v)
+            -> ((v : Var) -> sp-of ent' s1' s2' (f' v) ≡ s1' v)
+             × ((v : Var) -> sp-of ent' s1' s2' (g' v) ≡ s2' v)
+
+record SolvedVec {n : ℕ} {ps1 ps2 : Vec Pattern n}
+    (ecs : equiv-constructors ps1 ps2)
+    (f g : VarSub) (ent : List LookupEntry) (k : ℕ) : Set where
+    constructor MkSolvedVec
+    field
+        f' g' : VarSub
+        ent' : List LookupEntry
+        k' : ℕ
+        h : VarSub
+        f'-def : ∀ v -> f' v ≡ h (f v)
+        g'-def : ∀ v -> g' v ≡ h (g v)
+        unifies : map (_[_] (toSub f')) ps1 ≡ map (_[_] (toSub g')) ps2
+        fresh-inv : FreshFrom f' g' k'
+        mgu-inv : (s1' s2' : Sub)
+            -> map (_[_] s1') ps1 ≡ map (_[_] s2') ps2
+            -> ((v : Var) -> sp-of ent s1' s2' (f v) ≡ s1' v)
+            -> ((v : Var) -> sp-of ent s1' s2' (g v) ≡ s2' v)
+            -> ((v : Var) -> sp-of ent' s1' s2' (f' v) ≡ s1' v)
+             × ((v : Var) -> sp-of ent' s1' s2' (g' v) ≡ s2' v)
+
+mutual
+    solve-vec : ∀{n} {ps1 ps2 : Vec Pattern n}
         -> (ecs : equiv-constructors ps1 ps2)
-        -> (l : locations ecs)
-        -> Var × Var
-    gets-xs {n} {p1 ∷ ps1} {p2 ∷ ps2} (ec , ecs) (inj₁ l) = get-xs ec l
-    gets-xs {n} {p1 ∷ ps1} {p2 ∷ ps2} (ec , ecs) (inj₂ ls) = gets-xs ecs ls
+        -> (f g : VarSub) -> (ent : List LookupEntry) -> (k : ℕ)
+        -> FreshFrom f g k
+        -> SolvedVec ecs f g ent k
+    solve-vec {ps1 = []} {[]} _ f g ent k fr =
+        MkSolvedVec f g ent k (λ v → v) (λ _ → refl) (λ _ → refl) refl fr
+            (λ s1' s2' _ fi gi → fi , gi)
+    solve-vec {ps1 = p1 ∷ _} {p2 ∷ _} (ec , ecs) f g ent k fr with solve ec f g ent k fr
+    ... | MkSolved f1 g1 ent1 k1 h1 f1d g1d u1 fr1 m1 with solve-vec ecs f1 g1 ent1 k1 fr1
+    ... | MkSolvedVec f2 g2 ent2 k2 h2 f2d g2d u2 fr2 m2 = MkSolvedVec f2 g2 ent2 k2 (h2 ∘v h1)
+        (λ v → trans (f2d v) (cong h2 (f1d v)))
+        (λ v → trans (g2d v) (cong h2 (g1d v)))
+        (cong₂ _∷_ head-eq u2)
+        fr2
+        mgu-combined
+        where
+        f2≡ : toSub f2 ≡ toSub (h2 ∘v f1)
+        f2≡ = funext (λ v → cong X (f2d v))
+        g2≡ : toSub g2 ≡ toSub (h2 ∘v g1)
+        g2≡ = funext (λ v → cong X (g2d v))
+        head-eq : toSub f2 [ p1 ] ≡ toSub g2 [ p2 ]
+        head-eq rewrite f2≡ | g2≡ = lift-ec h2 f1 g1 ec u1
 
-    get-xs : {p1 p2 : Pattern} 
+        mgu-combined : (s1' s2' : Sub)
+            -> map (_[_] s1') (p1 ∷ _) ≡ map (_[_] s2') (p2 ∷ _)
+            -> ((v : Var) -> sp-of ent s1' s2' (f v) ≡ s1' v)
+            -> ((v : Var) -> sp-of ent s1' s2' (g v) ≡ s2' v)
+            -> ((v : Var) -> sp-of ent2 s1' s2' (f2 v) ≡ s1' v)
+             × ((v : Var) -> sp-of ent2 s1' s2' (g2 v) ≡ s2' v)
+        mgu-combined s1' s2' u' fi gi with m1 s1' s2' (Unify (cons-inj-hd u')) fi gi
+        ... | fi1 , gi1 = m2 s1' s2' (cons-inj-tl u') fi1 gi1
+
+    solve : ∀{p1 p2}
         -> (ec : equiv-constructor p1 p2)
-        -> (l : location ec)
-        -> Var × Var
-    get-xs {X x1} {X x2} ECX tt = x1 , x2
-    get-xs {K k n ps1} {K k n ps2} (ECK ecs) ls = gets-xs ecs ls
+        -> (f g : VarSub) -> (ent : List LookupEntry) -> (k : ℕ)
+        -> FreshFrom f g k
+        -> Solved ec f g ent k
+    solve (ECX {x1} {x2}) f g ent k fr with f x1 ≟v g x2
+    ... | yes veq = MkSolved f g ent k (λ v → v)
+        (λ _ → refl) (λ _ → refl) (cong X veq) fr
+        (λ s1' s2' _ fi gi → fi , gi)
+    ... | no neq = MkSolved
+        (rename2 (f x1) (g x2) (R (Fresh k)) ∘v f)
+        (rename2 (f x1) (g x2) (R (Fresh k)) ∘v g)
+        ((Fresh k , x1) ∷ ent)
+        (suc k)
+        (rename2 (f x1) (g x2) (R (Fresh k)))
+        (λ _ → refl) (λ _ → refl)
+        (cong X (trans (rename2-a (f x1) (g x2) (R (Fresh k)))
+                       (sym (rename2-b (f x1) (g x2) (R (Fresh k))))))
+        (rename2-fresh-lem (f x1) (g x2) f g k fr)
+        mgu-leaf-wrap
+        where
+        ren : VarSub
+        ren = rename2 (f x1) (g x2) (R (Fresh k))
 
+        sp-of-ren : (a b : Var) (fk : ℕ) (x₁ : Var) (ent₁ : List LookupEntry) (s1' s2' : Sub) (w : Var)
+            -> sp-of ent₁ s1' s2' a ≡ s1' x₁
+            -> sp-of ent₁ s1' s2' b ≡ s1' x₁
+            -> w ≢ R (Fresh fk)
+            -> sp-of ((Fresh fk , x₁) ∷ ent₁) s1' s2' (rename2 a b (R (Fresh fk)) w) ≡ sp-of ent₁ s1' s2' w
+        sp-of-ren a b fk x₁ ent₁ s1' s2' w spa spb wfr with rename2-cases a b (R (Fresh fk)) w
+        ... | inj₁ (a≡w , ren≡c) rewrite ren≡c =
+            trans (sp-of-extend-hit fk x₁ ent₁ s1' s2')
+                  (trans (sym spa) (cong (sp-of ent₁ s1' s2') a≡w))
+        ... | inj₂ (inj₁ (_ , b≡w , ren≡c)) rewrite ren≡c =
+            trans (sp-of-extend-hit fk x₁ ent₁ s1' s2')
+                  (trans (sym spb) (cong (sp-of ent₁ s1' s2') b≡w))
+        ... | inj₂ (inj₂ (_ , _ , ren≡v)) rewrite ren≡v =
+            sp-of-extend-miss fk x₁ ent₁ s1' s2' w wfr
 
--- two locations are equivalent if they either agree on the left pattern or agree on the right pattern
-≡l1 : {p1 p2 : Pattern} 
-    -> (ec : equiv-constructor p1 p2)
-    -> (l1 l2 : location ec)
-    -> Set 
-≡l1 ec l1 l2 with get-xs ec l1 | get-xs ec l2 
-≡l1 ec l1 l2 | x11 , x12 | x21 , x22 = (x11 ≡ x21) ⊎ (x12 ≡ x22)
+        mgu-leaf-wrap : (s1' s2' : Sub) -> (_,_unifies_,_ s1' s2' (X x1) (X x2))
+            -> ((v : Var) -> sp-of ent s1' s2' (f v) ≡ s1' v)
+            -> ((v : Var) -> sp-of ent s1' s2' (g v) ≡ s2' v)
+            -> ((v : Var) -> sp-of ((Fresh k , x1) ∷ ent) s1' s2' (ren (f v)) ≡ s1' v)
+             × ((v : Var) -> sp-of ((Fresh k , x1) ∷ ent) s1' s2' (ren (g v)) ≡ s2' v)
+        mgu-leaf-wrap s1' s2' (Unify u') fi gi = left-inv , right-inv
+            where
+            left-inv : (v : Var) -> sp-of ((Fresh k , x1) ∷ ent) s1' s2' (ren (f v)) ≡ s1' v
+            left-inv v = trans (sp-of-ren (f x1) (g x2) k x1 ent s1' s2' (f v)
+                (fi x1) (trans (gi x2) (sym u')) (proj₁ (fr k ≤-refl v))) (fi v)
+            right-inv : (v : Var) -> sp-of ((Fresh k , x1) ∷ ent) s1' s2' (ren (g v)) ≡ s2' v
+            right-inv v = trans (sp-of-ren (f x1) (g x2) k x1 ent s1' s2' (g v)
+                (fi x1) (trans (gi x2) (sym u')) (proj₂ (fr k ≤-refl v))) (gi v)
 
-data ≡l : {p1 p2 : Pattern} 
-    -> (ec : equiv-constructor p1 p2)
-    -> (l1 l2 : location ec)
-    -> Set where 
-
-    ≡l-refl : {p1 p2 : Pattern} 
-        -> (ec : equiv-constructor p1 p2)
-        -> (l1 : location ec)
-        -> ≡l ec l1 l1  
-
-    ≡l-cons : {p1 p2 : Pattern} 
-        -> (ec : equiv-constructor p1 p2)
-        -> (l1 l2 l3 : location ec)
-        -> ≡l ec l1 l2  
-        -> ≡l1 ec l2 l3
-        -> ≡l ec l1 l3
-
-surjection : {A B : Set} -> (f : A -> B) -> Set 
-surjection {A} {B} f = (b : B) -> ∃[ a ] (f a ≡ b)
-
-postulate
-    sum-fin : (n1 n2 : ℕ)
-        -> (Fin (n1 + n2)) ≅ (Fin n1 ⊎ Fin n2)
-    -- _≅_.to (sum-fin zero n2) a = inj₂ a
-    -- _≅_.from (sum-fin zero n2) (inj₂ y) = y
-    -- _≅_.fromto (sum-fin zero n2) = refl
-    -- _≅_.tofrom (sum-fin zero n2) {inj₂ y} = refl
-    -- _≅_.to (sum-fin (suc n1) n2) zero = inj₁ zero
-    -- _≅_.to (sum-fin (suc n1) n2) (suc a) with _≅_.to (sum-fin n1 n2) a
-    -- ... | inj₁ x = inj₁ (suc x)
-    -- ... | inj₂ y = inj₂ y
-    -- _≅_.from (sum-fin (suc n1) n2) (inj₁ zero) = zero
-    -- _≅_.from (sum-fin (suc n1) n2) (inj₁ (suc x)) = suc (_≅_.from (sum-fin n1 n2) (inj₁ x))
-    -- _≅_.from (sum-fin (suc n1) n2) (inj₂ y) = suc (_≅_.from (sum-fin n1 n2) (inj₂ y))
-    -- _≅_.fromto (sum-fin (suc n1) n2) {zero} = refl
-    -- _≅_.fromto (sum-fin (suc n1) n2) {suc a} with _≅_.to (sum-fin n1 n2) a
-    -- ... | inj₁ x = {!   !}
-    -- ... | inj₂ y = {!   !}
-    -- _≅_.tofrom (sum-fin (suc n1) n2) {a} = {!   !}
-
-mutual 
-    finite-locations : ∀{n} 
-        -> {ps1 ps2 : Vec Pattern n}
-        -> (ecs : equiv-constructors ps1 ps2)
-        -> ∃[ n ]
-            Σ[ f ∈ (Fin n -> locations ecs) ]
-            (surjection f)
-    finite-locations {n} {[]} {[]} tt = zero , (λ ()) , λ ()
-    finite-locations {n} {p1 ∷ ps1} {p2 ∷ ps2} (ec , ecs) with finite-location ec | finite-locations ecs
-    ... | n1 , f1 , s1 | n2 , f2 , s2 = n1 + n2 , (λ x → f (_≅_.to (sum-fin n1 n2) x)) , s
-        where 
-        f : Fin n1 ⊎ Fin n2 → location ec ⊎ locations ecs 
-        f (inj₁ n) = inj₁ (f1 n)
-        f (inj₂ n) = inj₂ (f2 n)
-
-        s : (b : location ec ⊎ locations ecs) 
-            -> Σ (Fin (n1 + n2)) (λ a → f (_≅_.to (sum-fin n1 n2) a) ≡ b)
-        s (inj₁ l) with s1 l
-        s (inj₁ l) | n , eq = (_≅_.from (sum-fin n1 n2) (inj₁ n)) , eq'
-            where 
-            eq' : f (_≅_.to (sum-fin n1 n2) (_≅_.from (sum-fin n1 n2) (inj₁ n))) ≡ inj₁ l
-            eq' rewrite _≅_.tofrom (sum-fin n1 n2) {inj₁ n} = cong inj₁ eq
-        s (inj₂ l) with s2 l
-        s (inj₂ l) | n , eq = (_≅_.from (sum-fin n1 n2) (inj₂ n)) , eq'
-            where 
-            eq' : f (_≅_.to (sum-fin n1 n2) (_≅_.from (sum-fin n1 n2) (inj₂ n))) ≡ inj₂ l
-            eq' rewrite _≅_.tofrom (sum-fin n1 n2) {inj₂ n} = cong inj₂ eq
-
-    finite-location :  {p1 p2 : Pattern} 
-        -> (ec : equiv-constructor p1 p2)
-        -> ∃[ n ]
-            Σ[ f ∈ (Fin n -> location ec) ]
-            (surjection f)
-    finite-location ECX = 1 , (λ _ → tt) , (λ b → zero , refl)
-    finite-location (ECK ecs) = finite-locations ecs
-
-
--- partition : {p1 p2 : Pattern} 
---     -> (ec : equiv-constructor p1 p2)
+    solve (ECK {kk} {n} ecs) f g ent k fr with solve-vec ecs f g ent k fr
+    ... | MkSolvedVec f' g' ent' k' h fd gd u fr' m = MkSolved f' g' ent' k' h fd gd (cong (K kk n) u) fr' mgu-k
+        where
+        mgu-k : (s1' s2' : Sub) -> (_,_unifies_,_ s1' s2' (K kk n _) (K kk n _))
+            -> ((v : Var) -> sp-of ent s1' s2' (f v) ≡ s1' v)
+            -> ((v : Var) -> sp-of ent s1' s2' (g v) ≡ s2' v)
+            -> ((v : Var) -> sp-of ent' s1' s2' (f' v) ≡ s1' v)
+             × ((v : Var) -> sp-of ent' s1' s2' (g' v) ≡ s2' v)
+        mgu-k s1' s2' (Unify u') fi gi = m s1' s2' (K-inj-ps u') fi gi
 
 generalization-equiv-constructor : ∀{p1 p2}
     -> equiv-constructor p1 p2
     -> ∃[ s1 ] ∃[ s2 ] s1 , s2 mgu p1 , p2
-generalization-equiv-constructor ec = {!   !} , {!   !} , {!   !}
+generalization-equiv-constructor ec with solve ec (L ∘v L) (L ∘v R) [] 0 initial-fresh
+... | MkSolved f g ent' k' h fd gd u fr m = toSub f , toSub g , MGU (Unify u) mgu'
+    where
+    mgu' : (s1' s2' : Sub) -> (_,_unifies_,_ s1' s2' _ _)
+        -> s1' ⊑ toSub f × s2' ⊑ toSub g
+    mgu' s1' s2' u' with m s1' s2' u' (λ v → refl) (λ v → refl)
+    ... | fi , gi = Prec (sp-of ent' s1' s2') (funext (λ v → sym (fi v)))
+                  , Prec (sp-of ent' s1' s2') (funext (λ v → sym (gi v)))
 
-
-
-
-
-
-
-
-
-
-
+-- end machine generated code
 
 data _,_preunifies_,_ (s1 s2 : Sub) (p1 p2 : Pattern) : Set where
     PU : ((s1' s2' : Sub) 
@@ -286,11 +479,11 @@ cons-inj : ∀{n x1 x2}
     -> x1 ≡ x2
 cons-inj refl = refl
 
-cons-inj-tl : ∀{n x1 x2}
-    -> {xs1 xs2 : Vec Pattern n}
-    -> x1 ∷ xs1 ≡ x2 ∷ xs2 
-    -> xs1 ≡ xs2
-cons-inj-tl refl = refl
+-- cons-inj-tl : ∀{n x1 x2}
+--     -> {xs1 xs2 : Vec Pattern n}
+--     -> x1 ∷ xs1 ≡ x2 ∷ xs2 
+--     -> xs1 ≡ xs2
+-- cons-inj-tl refl = refl
 
 K-inj-kn : ∀{n1 n2 k1 k2}
     -> {ps1 : Vec Pattern n1}
@@ -299,11 +492,11 @@ K-inj-kn : ∀{n1 n2 k1 k2}
     -> k1 ≡ k2 × n1 ≡ n2
 K-inj-kn refl = refl , refl
 
-K-inj-ps : ∀{n k1 k2}
-    -> {ps1 ps2 : Vec Pattern n}
-    -> K k1 n ps1 ≡ K k2 n ps2 
-    -> ps1 ≡ ps2
-K-inj-ps refl = refl
+-- K-inj-ps : ∀{n k1 k2}
+--     -> {ps1 ps2 : Vec Pattern n}
+--     -> K k1 n ps1 ≡ K k2 n ps2 
+--     -> ps1 ≡ ps2
+-- K-inj-ps refl = refl
 
 cons-preunify : ∀{s1 s2 p1 p2 k n} 
     -> {ps1 ps2 : Vec Pattern n}
@@ -524,7 +717,66 @@ splitter {s1} {s2} {X x} {K k n ps} u = SplitPU s1' sid (PU pu) ineq
             equiv-children  {suc n'} (p' ∷ ps') pref = cong₂ _∷_ (equiv-child1 (prefix-to-index pref IndexOfHead)) (equiv-children ps' (PrefixCons pref))
         
 
-splitter {s1} {s2} {K x n x₁} {X x₂} u = {!   !} -- symmetrical
+splitter {s1} {s2} {K k n ps} {X x} u = SplitPU sid s2' (PU pu) ineq
+    where
+    s2' : Sub
+    s2' x' with x ≟v x' 
+    ... | yes refl = K k n (freshesL n)
+    ... | no _ = X (R x')
+
+    ineq : metric sid s2' (K k n ps) (X x) > 0
+    ineq with x ≟v x
+    ... | yes refl = s≤s z≤n
+    ... | no neq = ⊥-elim (neq refl)
+
+    pu : (s1'' s2'' : Sub)
+        -> s1'' , s2'' unifies K k n ps , X x 
+        -> (s1'' ⊑ sid) × (s2'' ⊑ s2')
+    pu s1'' s2'' (Unify eq) = (Prec s1'' refl) , (Prec (sp ps) (funext equiv))
+        where 
+        sp : ∀{n} -> (ps : Vec Pattern n) -> Sub 
+        sp ps' y with cleave y 
+        ... | inj₁ x' = childfold s1'' ps' x'
+        ... | inj₂ x' = s2'' x'
+
+        equiv : (x' : Var) → s2'' x' ≡ ((sp ps) ∘ s2') x'
+        equiv x' with x ≟v x' 
+        equiv x' | no _ with cleave (R x') in eq'
+        equiv x' | no _ | inj₁ _ = refl
+        equiv x' | no _ | inj₂ _ with eq' 
+        equiv x' | no _ | inj₂ _ | refl = refl
+        equiv x' | yes refl = trans (sym eq) (cong (K k n) (equiv-children ps PrefixSelf))
+            where
+            equiv-child2 : ∀{n' n'' p' }
+                -> {ps' : Vec Pattern n''}
+                -> indexof ps' n' p'
+                -> s1'' [ p' ] ≡ childfold s1'' ps' (Fresh n')
+            equiv-child2 {n'} {n'' = n''} IndexOfHead with Fresh n' ≟v Fresh n'
+            equiv-child2 {n'} IndexOfHead | yes refl  = refl
+            equiv-child2 {n'} IndexOfHead | no neq = ⊥-elim (neq refl)
+            equiv-child2 {n'} {n'' = n''} (IndexOfCons i) with Fresh n' ≟v Fresh n''
+            equiv-child2 {n'} (IndexOfCons i) | yes eq' with Fresh-inj eq'
+            equiv-child2 {n'} {n'' = suc n''} (IndexOfCons i) | yes _ | refl with Fresh (suc n'') ≟v Fresh n''
+            equiv-child2 {n'} (IndexOfCons i) | yes _ | refl | yes eq' with Fresh-inj eq'
+            equiv-child2 {n'} (IndexOfCons i) | yes _ | refl | yes _ | ()
+            equiv-child2 {n'} (IndexOfCons i) | yes _ | refl | no _ = equiv-child2 i
+            equiv-child2 {n'} {n'' = suc n''} (IndexOfCons i) | no neq with Fresh n' ≟v Fresh n''
+            equiv-child2 {n'} (IndexOfCons i) | no neq | yes eq' rewrite eq' = ⊥-elim (lt-not-eq (index-lt-length i) (Fresh-inj eq'))
+            equiv-child2 {n'} (IndexOfCons i) | no neq | no neq' = equiv-child2 i
+
+            equiv-child1 : ∀{n' n'' p'}
+                -> {ps' : Vec Pattern n''}
+                -> indexof ps' n' p'
+                -> s1'' [ p' ] ≡ sp ps' (L (Fresh n'))
+            equiv-child1 {n'} i with cleave (L (Fresh n')) in eq''
+            equiv-child1 {n'} i | inj₁ x = equiv-child2 i 
+            equiv-child1 {n'} i | inj₂ _ with eq'' 
+            equiv-child1 {n'} i | inj₂ _ | () 
+
+            equiv-children : {n' : ℕ} -> (ps' : Vec Pattern n') -> prefix ps ps' -> map (_[_] s1'') ps' ≡ map (_[_] (sp ps)) (freshesL n')
+            equiv-children [] pref = refl
+            equiv-children  {suc n'} (p' ∷ ps') pref = cong₂ _∷_ (equiv-child1 (prefix-to-index pref IndexOfHead)) (equiv-children ps' (PrefixCons pref))
+
     
 
 generalization-sized : ∀{s1 s2 p1 p2}

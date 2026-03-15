@@ -18,19 +18,13 @@ record _≅_ (A B : Set) : Set where
         tofrom : ∀{b} -> to (from b) ≡ b
 
 postulate 
+    funext : {A B : Set} -> {f g : A -> B} -> ((x : A) -> f x ≡ g x) -> f ≡ g
     Constructor : Set
     Var : Set 
     Cleft : Var ≅ (Var ⊎ Var)
-    -- L : Var -> Var 
-    -- R : Var -> Var 
-    -- L-inj : (x y : Var) -> (L x ≡ L y) -> x ≡ y
-    -- R-inj : (x y : Var) -> (R x ≡ R y) -> x ≡ y
-    -- L-R-disjoint : (x y : Var) -> (L x ≡ R y) -> ⊥
-    -- L-R-cover : (y : Var) -> ∃[ x ] (L x ≡ y ⊎ R x ≡ y)
     _≟v_ : (x y : Var) -> Dec (x ≡ y)
     Fresh : ℕ -> Var 
     Fresh-inj : {x y : ℕ} -> (Fresh x ≡ Fresh y) -> x ≡ y
-    funext : {A B : Set} -> {f g : A -> B} -> ((x : A) -> f x ≡ g x) -> f ≡ g
 
 L : Var -> Var 
 L x = _≅_.from Cleft (inj₁ x)
