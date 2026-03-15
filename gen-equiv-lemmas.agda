@@ -77,9 +77,9 @@ rename2-fresh-lem a b f g k fr j le v = left-part , right-part
     ... | inj₂ (inj₁ (_ , _ , is-c)) = LFk≠LFj (trans (sym is-c) eq)
     ... | inj₂ (inj₂ (_ , _ , is-v)) = proj₂ (fr j k≤j v) (trans (sym is-v) eq)
 
--- initial-fresh
-postulate
-    initial-fresh : FreshFrom L R 0
+-- -- initial-fresh
+-- postulate
+--     initial-fresh : FreshFrom L R 0
 
 -- Lookup
 lookup-search : List (Var × Var) -> Var -> Var
