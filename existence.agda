@@ -6,6 +6,7 @@ open import Data.Nat.Properties
 open import Data.Vec hiding ([_])
 open import Data.Empty
 open import Data.Unit
+open import Data.Fin hiding (_+_; _<_; _≤_; _>_)
 open import Data.Product hiding (map)
 open import Data.Sum hiding (map)
 open import Relation.Binary.PropositionalEquality hiding ([_])
@@ -88,11 +89,138 @@ mutual
     size-diff-zero s (X x) eq | X _ = ECX
     size-diff-zero s (K k n ps) eq = ECK (size-diff-zero-map s ps eq)
 
+mutual 
+    locations : ∀{n} 
+        -> {ps1 ps2 : Vec Pattern n}
+        -> (ecs : equiv-constructors ps1 ps2)
+        -> Set
+    locations {n} {[]} ecs = ⊥
+    locations {n} {p1 ∷ ps1} {p2 ∷ ps2} (ec , ecs) = location ec ⊎ locations ecs
+
+    location : {p1 p2 : Pattern} -> (ec : equiv-constructor p1 p2) -> Set
+    location ECX = ⊤
+    location (ECK ecs) = locations ecs
+
+mutual 
+    gets-xs : ∀{n} 
+        -> {ps1 ps2 : Vec Pattern n}
+        -> (ecs : equiv-constructors ps1 ps2)
+        -> (l : locations ecs)
+        -> Var × Var
+    gets-xs {n} {p1 ∷ ps1} {p2 ∷ ps2} (ec , ecs) (inj₁ l) = get-xs ec l
+    gets-xs {n} {p1 ∷ ps1} {p2 ∷ ps2} (ec , ecs) (inj₂ ls) = gets-xs ecs ls
+
+    get-xs : {p1 p2 : Pattern} 
+        -> (ec : equiv-constructor p1 p2)
+        -> (l : location ec)
+        -> Var × Var
+    get-xs {X x1} {X x2} ECX tt = x1 , x2
+    get-xs {K k n ps1} {K k n ps2} (ECK ecs) ls = gets-xs ecs ls
+
+
+-- two locations are equivalent if they either agree on the left pattern or agree on the right pattern
+≡l1 : {p1 p2 : Pattern} 
+    -> (ec : equiv-constructor p1 p2)
+    -> (l1 l2 : location ec)
+    -> Set 
+≡l1 ec l1 l2 with get-xs ec l1 | get-xs ec l2 
+≡l1 ec l1 l2 | x11 , x12 | x21 , x22 = (x11 ≡ x21) ⊎ (x12 ≡ x22)
+
+data ≡l : {p1 p2 : Pattern} 
+    -> (ec : equiv-constructor p1 p2)
+    -> (l1 l2 : location ec)
+    -> Set where 
+
+    ≡l-refl : {p1 p2 : Pattern} 
+        -> (ec : equiv-constructor p1 p2)
+        -> (l1 : location ec)
+        -> ≡l ec l1 l1  
+
+    ≡l-cons : {p1 p2 : Pattern} 
+        -> (ec : equiv-constructor p1 p2)
+        -> (l1 l2 l3 : location ec)
+        -> ≡l ec l1 l2  
+        -> ≡l1 ec l2 l3
+        -> ≡l ec l1 l3
+
+surjection : {A B : Set} -> (f : A -> B) -> Set 
+surjection {A} {B} f = (b : B) -> ∃[ a ] (f a ≡ b)
+
+postulate
+    sum-fin : (n1 n2 : ℕ)
+        -> (Fin (n1 + n2)) ≅ (Fin n1 ⊎ Fin n2)
+    -- _≅_.to (sum-fin zero n2) a = inj₂ a
+    -- _≅_.from (sum-fin zero n2) (inj₂ y) = y
+    -- _≅_.fromto (sum-fin zero n2) = refl
+    -- _≅_.tofrom (sum-fin zero n2) {inj₂ y} = refl
+    -- _≅_.to (sum-fin (suc n1) n2) zero = inj₁ zero
+    -- _≅_.to (sum-fin (suc n1) n2) (suc a) with _≅_.to (sum-fin n1 n2) a
+    -- ... | inj₁ x = inj₁ (suc x)
+    -- ... | inj₂ y = inj₂ y
+    -- _≅_.from (sum-fin (suc n1) n2) (inj₁ zero) = zero
+    -- _≅_.from (sum-fin (suc n1) n2) (inj₁ (suc x)) = suc (_≅_.from (sum-fin n1 n2) (inj₁ x))
+    -- _≅_.from (sum-fin (suc n1) n2) (inj₂ y) = suc (_≅_.from (sum-fin n1 n2) (inj₂ y))
+    -- _≅_.fromto (sum-fin (suc n1) n2) {zero} = refl
+    -- _≅_.fromto (sum-fin (suc n1) n2) {suc a} with _≅_.to (sum-fin n1 n2) a
+    -- ... | inj₁ x = {!   !}
+    -- ... | inj₂ y = {!   !}
+    -- _≅_.tofrom (sum-fin (suc n1) n2) {a} = {!   !}
+
+mutual 
+    finite-locations : ∀{n} 
+        -> {ps1 ps2 : Vec Pattern n}
+        -> (ecs : equiv-constructors ps1 ps2)
+        -> ∃[ n ]
+            Σ[ f ∈ (Fin n -> locations ecs) ]
+            (surjection f)
+    finite-locations {n} {[]} {[]} tt = zero , (λ ()) , λ ()
+    finite-locations {n} {p1 ∷ ps1} {p2 ∷ ps2} (ec , ecs) with finite-location ec | finite-locations ecs
+    ... | n1 , f1 , s1 | n2 , f2 , s2 = n1 + n2 , (λ x → f (_≅_.to (sum-fin n1 n2) x)) , s
+        where 
+        f : Fin n1 ⊎ Fin n2 → location ec ⊎ locations ecs 
+        f (inj₁ n) = inj₁ (f1 n)
+        f (inj₂ n) = inj₂ (f2 n)
+
+        s : (b : location ec ⊎ locations ecs) 
+            -> Σ (Fin (n1 + n2)) (λ a → f (_≅_.to (sum-fin n1 n2) a) ≡ b)
+        s (inj₁ l) with s1 l
+        s (inj₁ l) | n , eq = (_≅_.from (sum-fin n1 n2) (inj₁ n)) , eq'
+            where 
+            eq' : f (_≅_.to (sum-fin n1 n2) (_≅_.from (sum-fin n1 n2) (inj₁ n))) ≡ inj₁ l
+            eq' rewrite _≅_.tofrom (sum-fin n1 n2) {inj₁ n} = cong inj₁ eq
+        s (inj₂ l) with s2 l
+        s (inj₂ l) | n , eq = (_≅_.from (sum-fin n1 n2) (inj₂ n)) , eq'
+            where 
+            eq' : f (_≅_.to (sum-fin n1 n2) (_≅_.from (sum-fin n1 n2) (inj₂ n))) ≡ inj₂ l
+            eq' rewrite _≅_.tofrom (sum-fin n1 n2) {inj₂ n} = cong inj₂ eq
+
+    finite-location :  {p1 p2 : Pattern} 
+        -> (ec : equiv-constructor p1 p2)
+        -> ∃[ n ]
+            Σ[ f ∈ (Fin n -> location ec) ]
+            (surjection f)
+    finite-location ECX = 1 , (λ _ → tt) , (λ b → zero , refl)
+    finite-location (ECK ecs) = finite-locations ecs
+
+
+-- partition : {p1 p2 : Pattern} 
+--     -> (ec : equiv-constructor p1 p2)
 
 generalization-equiv-constructor : ∀{p1 p2}
     -> equiv-constructor p1 p2
     -> ∃[ s1 ] ∃[ s2 ] s1 , s2 mgu p1 , p2
-generalization-equiv-constructor = {!   !}
+generalization-equiv-constructor ec = {!   !} , {!   !} , {!   !}
+
+
+
+
+
+
+
+
+
+
+
 
 data _,_preunifies_,_ (s1 s2 : Sub) (p1 p2 : Pattern) : Set where
     PU : ((s1' s2' : Sub) 
