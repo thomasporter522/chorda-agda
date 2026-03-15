@@ -360,6 +360,83 @@ metric-lemma-2 {s3} {s4} {p1} {p2} {k1} {n1} {ps1} {ps2} l with size-diff s3 (K 
 ... | zero | suc _ = s≤s z≤n
 ... | suc _ | _ = s≤s z≤n
 
+-- begin Claude's work
+-- Helper: (a + b) + (c + d) ≡ (a + c) + (b + d)
++-interchange : ∀ a b c d -> (a + b) + (c + d) ≡ (a + c) + (b + d)
++-interchange a b c d = begin
+    (a + b) + (c + d)   ≡⟨ +-assoc a b (c + d) ⟩
+    a + (b + (c + d))    ≡⟨ cong (a +_) (sym (+-assoc b c d)) ⟩
+    a + ((b + c) + d)    ≡⟨ cong (λ x → a + (x + d)) (+-comm b c) ⟩
+    a + ((c + b) + d)    ≡⟨ cong (a +_) (+-assoc c b d) ⟩
+    a + (c + (b + d))    ≡⟨ sym (+-assoc a c (b + d)) ⟩
+    (a + c) + (b + d)    ∎
+    where open ≡-Reasoning
+
+-- Lemma 1: size-diff s p + size p ≡ size (s [ p ])
+
+mutual
+    size-sub-vec : ∀{n}
+        -> (s : Sub)
+        -> (ps : Vec Pattern n)
+        -> sum (map (size-diff s) ps) + sum (map size ps) ≡ sum (map size (map (_[_] s) ps))
+    size-sub-vec s [] = refl
+    size-sub-vec s (p ∷ ps)
+        rewrite sym (size-sub s p)
+        rewrite sym (size-sub-vec s ps)
+        = +-interchange (size-diff s p) (sum (map (size-diff s) ps)) (size p) (sum (map size ps))
+
+    size-sub : (s : Sub)
+        -> (p : Pattern)
+        -> size-diff s p + size p ≡ size (s [ p ])
+    size-sub s (X x) = +-identityʳ (size (s x))
+    size-sub s (K k n ps) rewrite sym (size-sub-vec s ps) = refl
+
+-- Lemma 2: size-diff decomposes over composition
+mutual
+    size-diff-comp-vec : ∀{n}
+        -> (sp s : Sub)
+        -> (ps : Vec Pattern n)
+        -> sum (map (size-diff (sp ∘ s)) ps) ≡ sum (map (size-diff sp) (map (_[_] s) ps)) + sum (map (size-diff s) ps)
+    size-diff-comp-vec sp s [] = refl
+    size-diff-comp-vec sp s (p ∷ ps)
+        rewrite size-diff-comp sp s p
+        rewrite size-diff-comp-vec sp s ps
+        = sym (+-interchange (size-diff sp (s [ p ])) (sum (map (size-diff sp) (map (_[_] s) ps))) (size-diff s p) (sum (map (size-diff s) ps)))
+
+    size-diff-comp : (sp s : Sub)
+        -> (p : Pattern)
+        -> size-diff (sp ∘ s) p ≡ size-diff sp (s [ p ]) + size-diff s p
+    size-diff-comp sp s (X x) = sym (size-sub sp (s x))
+    size-diff-comp sp s (K k n ps) = size-diff-comp-vec sp s ps
+
+-- Lemma 3: metric decomposes over composition
+metric-comp : (sp1 sp2 s1' s2' : Sub) (p1 p2 : Pattern)
+    -> metric (sp1 ∘ s1') (sp2 ∘ s2') p1 p2
+       ≡ metric sp1 sp2 (s1' [ p1 ]) (s2' [ p2 ]) + metric s1' s2' p1 p2
+metric-comp sp1 sp2 s1' s2' p1 p2
+    rewrite size-diff-comp sp1 s1' p1
+    rewrite size-diff-comp sp2 s2' p2
+    = +-interchange (size-diff sp1 (s1' [ p1 ])) (size-diff s1' p1) (size-diff sp2 (s2' [ p2 ])) (size-diff s2' p2)
+
+-- Lemma 4: arithmetic helper
+-- if a + b ≤ suc n and 1 ≤ b then a ≤ n
+arith-helper : ∀{a b n} -> a + b ≤ suc n -> 1 ≤ b -> a ≤ n
+arith-helper {zero} _ _ = z≤n
+arith-helper {suc a} {suc b} {suc n} (s≤s h) (s≤s _) = s≤s (arith-helper {a} {suc b} {n} h (s≤s z≤n))
+
+-- The final result
+metric-inequality : ∀{s1 s2 s1' s2' sp1 sp2 p1 p2 n}
+    -> metric s1 s2 p1 p2 ≤ suc n
+    -> s1 ≡ sp1 ∘ s1'
+    -> s2 ≡ sp2 ∘ s2'
+    -> metric s1' s2' p1 p2 > 0
+    -> metric sp1 sp2 (s1' [ p1 ]) (s2' [ p2 ]) ≤ n
+metric-inequality {s1} {s2} {s1'} {s2'} {sp1} {sp2} {p1} {p2} {n} eq eq1 eq2 lt
+    rewrite eq1 rewrite eq2
+    rewrite metric-comp sp1 sp2 s1' s2' p1 p2
+    = arith-helper {metric sp1 sp2 (s1' [ p1 ]) (s2' [ p2 ])} {metric s1' s2' p1 p2} {n} eq lt
+-- end Claude's work
+
 data SplitResult (p1 p2 : Pattern) : Set where
     SplitEC : equiv-constructor p1 p2
         -> SplitResult p1 p2
@@ -465,7 +542,7 @@ generalization-sized {s1} {s2} {p1} {p2} (suc n) eq (Unify u) | SplitPU s1' s2' 
     equation rewrite eq1 rewrite eq2 = u
 
     inequation : metric sp1 sp2 (s1' [ p1 ]) (s2' [ p2 ]) ≤ n
-    inequation = {!   !}
+    inequation = metric-inequality {s1} {s2} {s1'} {s2'} {sp1} {sp2} {p1} {p2} {n} eq eq1 eq2 lt  
 generalization-sized {s1} {s2} {p1} {p2} (suc n) eq u | SplitPU s1' s2' (PU pu) lt | Prec sp1 eq1 , Prec sp2 eq2 | s1'' , s2'' , MGU (Unify u') mgu = (s1'' ∘ s1') , (s2'' ∘ s2') , MGU (Unify u') mgu'
     where 
     mgu' : (sl sr : Sub) →
