@@ -60,6 +60,25 @@ rename2-b a b c with a ≟v b
 X-inj : ∀{a b} -> _≡_ {_} {Pattern} (X a) (X b) -> a ≡ b
 X-inj refl = refl
 
+-- L-injectivity from Cleft isomorphism
+L-inj : {x y : Var} -> L x ≡ L y -> x ≡ y
+L-inj eq with cong (_≅_.to Cleft) eq
+... | ceq = inj₁-inj ceq
+    where
+    inj₁-inj : ∀{A B : Set}{a b : A} -> _≡_ {_} {A ⊎ B} (inj₁ a) (inj₁ b) -> a ≡ b
+    inj₁-inj refl = refl
+
+-- Informative case analysis on rename2
+rename2-cases : (a b c v : Var)
+    -> ((a ≡ v) × (rename2 a b c v ≡ c))
+     ⊎ ((a ≢ v) × (b ≡ v) × (rename2 a b c v ≡ c))
+     ⊎ ((a ≢ v) × (b ≢ v) × (rename2 a b c v ≡ v))
+rename2-cases a b c v with a ≟v v
+... | yes eq = inj₁ (eq , refl)
+... | no neqa with b ≟v v
+... | yes eq = inj₂ (inj₁ (neqa , eq , refl))
+... | no neqb = inj₂ (inj₂ (neqa , neqb , refl))
+
 K-inj-ps : ∀{k1 k2 n} {ps1 ps2 : Vec Pattern n}
     -> _≡_ {_} {Pattern} (K k1 n ps1) (K k2 n ps2) -> ps1 ≡ ps2
 K-inj-ps refl = refl
@@ -129,16 +148,29 @@ lookup-miss fv xv w rest neq with fv ≟v w
 FreshFrom : VarSub -> VarSub -> ℕ -> Set
 FreshFrom f g k = (j : ℕ) -> k ≤ j -> (v : Var) -> f v ≢ L (Fresh j) × g v ≢ L (Fresh j)
 
--- After rename2 a b (L(Fresh k)), the new FreshFrom is suc k
--- rename2 a b c applied to any value gives either c or the original.
--- If c = L(Fresh k), the result is either L(Fresh k) or the original.
--- For j > k: L(Fresh j) ≠ L(Fresh k) (by Fresh-inj), and L(Fresh j) ∉ range of f
--- (by the old freshness). So the result ≠ L(Fresh j).
-postulate
-    rename2-fresh-lem : (a b : Var) (f g : VarSub) (k : ℕ)
-        -> FreshFrom f g k
-        -> FreshFrom (rename2 a b (L (Fresh k)) ∘v f) (rename2 a b (L (Fresh k)) ∘v g) (suc k)
+rename2-fresh-lem : (a b : Var) (f g : VarSub) (k : ℕ)
+    -> FreshFrom f g k
+    -> FreshFrom (rename2 a b (L (Fresh k)) ∘v f) (rename2 a b (L (Fresh k)) ∘v g) (suc k)
+rename2-fresh-lem a b f g k fr j le v = left-part , right-part
+    where
+    k≠j : k ≢ j
+    k≠j eq = 1+n≰n (subst (suc k ≤_) (sym eq) le)
+    LFk≠LFj : L (Fresh k) ≢ L (Fresh j)
+    LFk≠LFj eq = k≠j (Fresh-inj (L-inj eq))
+    k≤j : k ≤ j
+    k≤j = ≤-trans (n≤1+n k) le
+    left-part : rename2 a b (L (Fresh k)) (f v) ≢ L (Fresh j)
+    left-part eq with rename2-cases a b (L (Fresh k)) (f v)
+    ... | inj₁ (_ , is-c) = LFk≠LFj (trans (sym is-c) eq)
+    ... | inj₂ (inj₁ (_ , _ , is-c)) = LFk≠LFj (trans (sym is-c) eq)
+    ... | inj₂ (inj₂ (_ , _ , is-v)) = proj₁ (fr j k≤j v) (trans (sym is-v) eq)
+    right-part : rename2 a b (L (Fresh k)) (g v) ≢ L (Fresh j)
+    right-part eq with rename2-cases a b (L (Fresh k)) (g v)
+    ... | inj₁ (_ , is-c) = LFk≠LFj (trans (sym is-c) eq)
+    ... | inj₂ (inj₁ (_ , _ , is-c)) = LFk≠LFj (trans (sym is-c) eq)
+    ... | inj₂ (inj₂ (_ , _ , is-v)) = proj₂ (fr j k≤j v) (trans (sym is-v) eq)
 
+postulate
     initial-fresh : FreshFrom L R 0
 
 -- Now: for the sp-of miss case, I need: if FreshFrom f g k and f v ≠ a and f v ≠ b,
@@ -164,12 +196,17 @@ sp-of-extend-miss-R : (fk : ℕ) (x1 : Var) (ent : List LookupEntry) (s1' s2' : 
     -> sp-of ((Fresh fk , x1) ∷ ent) s1' s2' (R w) ≡ sp-of ent s1' s2' (R w)
 sp-of-extend-miss-R fk x1 ent s1' s2' w = refl
 
--- General: if v ≠ L(Fresh fk), sp-of with extra entry agrees with old
--- We'll postulate this; the proof requires relating cleave v to L/R structure.
-postulate
-    sp-of-extend-miss : (fk : ℕ) (x1 : Var) (ent : List LookupEntry) (s1' s2' : Sub) (v : Var)
-        -> v ≢ L (Fresh fk)
-        -> sp-of ((Fresh fk , x1) ∷ ent) s1' s2' v ≡ sp-of ent s1' s2' v
+sp-of-extend-miss : (fk : ℕ) (x1 : Var) (ent : List LookupEntry) (s1' s2' : Sub) (v : Var)
+    -> v ≢ L (Fresh fk)
+    -> sp-of ((Fresh fk , x1) ∷ ent) s1' s2' v ≡ sp-of ent s1' s2' v
+sp-of-extend-miss fk x1 ent s1' s2' v neq with cleave v in cv
+... | inj₁ w = cong s1' (lookup-miss (Fresh fk) x1 w ent w≠Fk)
+    where
+    v≡Lw : v ≡ L w
+    v≡Lw = trans (sym fromto) (cong (_≅_.from Cleft) cv)
+    w≠Fk : Fresh fk ≢ w
+    w≠Fk eq = neq (trans v≡Lw (cong L (sym eq)))
+... | inj₂ w = refl
 
 -- sp-of on a hit
 sp-of-extend-hit : (fk : ℕ) (x1 : Var) (ent : List LookupEntry) (s1' s2' : Sub)
@@ -273,23 +310,34 @@ mutual
         ren : VarSub
         ren = rename2 (f x1) (g x2) (L (Fresh k))
 
-        postulate
-            left-inv : (s1' s2' : Sub) -> s1' x1 ≡ s2' x2
-                -> ((v : Var) -> sp-of ent s1' s2' (f v) ≡ s1' v)
-                -> ((v : Var) -> sp-of ent s1' s2' (g v) ≡ s2' v)
-                -> (v : Var) -> sp-of ((Fresh k , x1) ∷ ent) s1' s2' (ren (f v)) ≡ s1' v
-
-            right-inv : (s1' s2' : Sub) -> s1' x1 ≡ s2' x2
-                -> ((v : Var) -> sp-of ent s1' s2' (f v) ≡ s1' v)
-                -> ((v : Var) -> sp-of ent s1' s2' (g v) ≡ s2' v)
-                -> (v : Var) -> sp-of ((Fresh k , x1) ∷ ent) s1' s2' (ren (g v)) ≡ s2' v
+        sp-of-ren : (a b : Var) (fk : ℕ) (x₁ : Var) (ent₁ : List LookupEntry) (s1' s2' : Sub) (w : Var)
+            -> sp-of ent₁ s1' s2' a ≡ s1' x₁
+            -> sp-of ent₁ s1' s2' b ≡ s1' x₁
+            -> w ≢ L (Fresh fk)
+            -> sp-of ((Fresh fk , x₁) ∷ ent₁) s1' s2' (rename2 a b (L (Fresh fk)) w) ≡ sp-of ent₁ s1' s2' w
+        sp-of-ren a b fk x₁ ent₁ s1' s2' w spa spb wfr with rename2-cases a b (L (Fresh fk)) w
+        ... | inj₁ (a≡w , ren≡c) rewrite ren≡c =
+            trans (sp-of-extend-hit fk x₁ ent₁ s1' s2')
+                  (trans (sym spa) (cong (sp-of ent₁ s1' s2') a≡w))
+        ... | inj₂ (inj₁ (_ , b≡w , ren≡c)) rewrite ren≡c =
+            trans (sp-of-extend-hit fk x₁ ent₁ s1' s2')
+                  (trans (sym spb) (cong (sp-of ent₁ s1' s2') b≡w))
+        ... | inj₂ (inj₂ (_ , _ , ren≡v)) rewrite ren≡v =
+            sp-of-extend-miss fk x₁ ent₁ s1' s2' w wfr
 
         mgu-leaf-wrap : (s1' s2' : Sub) -> (_,_unifies_,_ s1' s2' (X x1) (X x2))
             -> ((v : Var) -> sp-of ent s1' s2' (f v) ≡ s1' v)
             -> ((v : Var) -> sp-of ent s1' s2' (g v) ≡ s2' v)
             -> ((v : Var) -> sp-of ((Fresh k , x1) ∷ ent) s1' s2' (ren (f v)) ≡ s1' v)
              × ((v : Var) -> sp-of ((Fresh k , x1) ∷ ent) s1' s2' (ren (g v)) ≡ s2' v)
-        mgu-leaf-wrap s1' s2' (Unify u') fi gi = left-inv s1' s2' u' fi gi , right-inv s1' s2' u' fi gi
+        mgu-leaf-wrap s1' s2' (Unify u') fi gi = left-inv , right-inv
+            where
+            left-inv : (v : Var) -> sp-of ((Fresh k , x1) ∷ ent) s1' s2' (ren (f v)) ≡ s1' v
+            left-inv v = trans (sp-of-ren (f x1) (g x2) k x1 ent s1' s2' (f v)
+                (fi x1) (trans (gi x2) (sym u')) (proj₁ (fr k ≤-refl v))) (fi v)
+            right-inv : (v : Var) -> sp-of ((Fresh k , x1) ∷ ent) s1' s2' (ren (g v)) ≡ s2' v
+            right-inv v = trans (sp-of-ren (f x1) (g x2) k x1 ent s1' s2' (g v)
+                (fi x1) (trans (gi x2) (sym u')) (proj₂ (fr k ≤-refl v))) (gi v)
 
     solve (ECK {kk} {n} ecs) f g ent k fr with solve-vec ecs f g ent k fr
     ... | MkSolvedVec f' g' ent' k' h fd gd u fr' m = MkSolved f' g' ent' k' h fd gd (cong (K kk n) u) fr' mgu-k
