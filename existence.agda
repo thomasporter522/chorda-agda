@@ -360,7 +360,8 @@ metric-lemma-2 {s3} {s4} {p1} {p2} {k1} {n1} {ps1} {ps2} l with size-diff s3 (K 
 ... | zero | suc _ = s≤s z≤n
 ... | suc _ | _ = s≤s z≤n
 
--- begin Claude's work
+-- begin machine generated code
+
 -- Helper: (a + b) + (c + d) ≡ (a + c) + (b + d)
 +-interchange : ∀ a b c d -> (a + b) + (c + d) ≡ (a + c) + (b + d)
 +-interchange a b c d = begin
@@ -435,7 +436,8 @@ metric-inequality {s1} {s2} {s1'} {s2'} {sp1} {sp2} {p1} {p2} {n} eq eq1 eq2 lt
     rewrite eq1 rewrite eq2
     rewrite metric-comp sp1 sp2 s1' s2' p1 p2
     = arith-helper {metric sp1 sp2 (s1' [ p1 ]) (s2' [ p2 ])} {metric s1' s2' p1 p2} {n} eq lt
--- end Claude's work
+
+-- end machine generated code
 
 data SplitResult (p1 p2 : Pattern) : Set where
     SplitEC : equiv-constructor p1 p2
